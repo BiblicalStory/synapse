@@ -3,7 +3,7 @@ import { App, Modal, MarkdownView, Plugin, Notice, Editor, PluginSettingTab, Set
 // Plugin Settings Interface
 interface synapseSettings {
 	enableBiblicalStory: boolean;
-	metadataUrls: string[];
+	metadataUrls: { url: string; enabled: boolean }[];  // ✅ Fix: Ensure correct type
 }
 
 const DEFAULT_SETTINGS: synapseSettings = {
@@ -214,7 +214,12 @@ async function createNoteInHierarchy(
 
 
 class JSONSearchModal {
-	constructor(app, results, onChoose, position = { top: 100, left: 100 }) {
+	popover: HTMLDivElement;
+	app: App;
+	results: any[];
+	onChoose: (result: any) => void;
+	colorMap: Map<string, string>;
+	constructor(app: App, results: any[], onChoose: (result: any) => void, position = { top: 100, left: 100 }) {
 		this.app = app;
 		this.results = results || [];
 		this.onChoose = onChoose;
@@ -251,7 +256,7 @@ class JSONSearchModal {
 			if (!this.colorMap.has(collection.collectionName)) {
 				this.colorMap.set(collection.collectionName, getRandomColor());
 			}
-			const collectionColor = this.colorMap.get(collection.collectionName);
+			const collectionColor = this.colorMap.get(collection.collectionName) || "#CCCCCC";
 			const entryColor = getModifiedColor(collectionColor, 0.85); // ✅ Slightly modified for entries
 
 			// ✅ Collection header styling
@@ -273,7 +278,7 @@ class JSONSearchModal {
 			});
 
 			// ✅ Iterate through each entry in the collection
-			collection.items.forEach((result) => {
+			collection.items.forEach((result: { title?: string }) => {
 				const button = itemsContainer.createEl("button", { text: result.title || "Untitled" });
 				button.style.display = "block";
 				button.style.margin = "5px 0";
@@ -296,7 +301,7 @@ class JSONSearchModal {
 		});
 	}
 
-	updateResults(newResults) {
+	updateResults(newResults: { collectionName: string; designator: string; items: { title?: string }[] }[]) {
 		console.log("♻️ Updating modal with new results...");
 		this.results = newResults;
 		this.render();
@@ -489,7 +494,7 @@ function getRandomColor() {
 	return palette[Math.floor(Math.random() * palette.length)];
 }
 
-function getModifiedColor(hex, brightnessFactor = 1.25) {
+function getModifiedColor(hex: string, brightnessFactor = 1.25) {
 	let r = parseInt(hex.slice(1, 3), 16);
 	let g = parseInt(hex.slice(3, 5), 16);
 	let b = parseInt(hex.slice(5, 7), 16);
@@ -506,7 +511,7 @@ function getModifiedColor(hex, brightnessFactor = 1.25) {
 // Plugin Class
 export default class synapse extends Plugin {
 	settings: synapseSettings;
-	private searchModal: JSONSearchModal | null = null;
+	public searchModal: JSONSearchModal | null = null;
 	private editorChangeHandler: ((editor: Editor) => Promise<void>) | null = null;
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -597,7 +602,7 @@ export default class synapse extends Plugin {
 					console.log("🛠 Preparing to open modal at:", modalPosition);
 					if (!this.searchModal) {
 						console.log("🆕 Creating and opening modal...");
-						this.searchModal = new JSONSearchModal(this.app, filteredCollections, async (result) => {
+						this.searchModal = new JSONSearchModal(this.app, filteredCollections, async (result: any) => {
 							if (!result) {
 								console.error("❌ No result selected.");
 								return;
@@ -638,7 +643,7 @@ export default class synapse extends Plugin {
 							this.searchModal.updateResults(filteredCollections);
 						} else {
 							console.log("🆕 Creating a new search modal...");
-							this.searchModal = new JSONSearchModal(this.app, filteredCollections, async (result) => {
+							this.searchModal = new JSONSearchModal(this.app, filteredCollections, async (result: any) => {
 								if (!result) {
 									console.error("❌ No result selected.");
 									return;

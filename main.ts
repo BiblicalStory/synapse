@@ -350,12 +350,23 @@ class JSONSearchModal {
 	}
 
 	open(position = { top: 100, left: 100 }) {
+		// Get window height and modal height
+		const modalHeight = 500; // Assumed max height
+		const windowHeight = window.innerHeight;
+
+		// Calculate bottom position of the modal
+		let adjustedTop = position.top;
+		if (adjustedTop + modalHeight > windowHeight) {
+			adjustedTop = windowHeight - modalHeight - 20; // Keep some space
+			console.log("📌 Adjusting modal position to fit within screen.");
+		}
+
 		Object.assign(this.popover.style, {
 			position: "absolute",
-			top: `${position.top}px`,
+			top: `${Math.max(adjustedTop, 20)}px`,  // Ensure it's not off-screen
 			left: `${Math.max(position.left - 100, 20)}px`,
 			width: "600px",
-			maxHeight: "500px",
+			maxHeight: `${modalHeight}px`,
 			overflowY: "auto",
 			background: "black",
 			color: "white",
@@ -368,12 +379,7 @@ class JSONSearchModal {
 
 		if (!document.body.contains(this.popover)) {
 			document.body.appendChild(this.popover);
-
 		}
-
-
-		// ✅ Call `render()` to construct the modal layout
-		this.render();
 	}
 
 	close() {

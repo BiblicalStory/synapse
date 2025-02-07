@@ -251,6 +251,18 @@ class JSONSearchModal {
 
 		this.popover.appendChild(titleContainer);
 
+		this.popover.style.display = "flex";
+		this.popover.style.flexDirection = "column";
+
+		// ✅ Create a container for scrollable search results
+		const resultsContainer = this.popover.createDiv();
+		resultsContainer.style.flexGrow = "1"; // ✅ Allows it to expand inside the modal
+		resultsContainer.style.overflowY = "auto"; // ✅ Enables scrolling
+		resultsContainer.style.maxHeight = "400px"; // ✅ Adjust height to prevent overflow
+		resultsContainer.style.paddingBottom = "50px"; // ✅ Adds space for bottom bar
+
+
+
 		this.results.forEach((collection) => {
 			// ✅ Generate a unique color per collection
 			if (!this.colorMap.has(collection.collectionName)) {
@@ -270,8 +282,12 @@ class JSONSearchModal {
 			categoryHeader.style.borderRadius = "5px";
 
 			// ✅ Entries container
-			const itemsContainer = this.popover.createDiv();
+			const itemsContainer = resultsContainer.createDiv();
 			itemsContainer.style.display = "block";
+
+			resultsContainer.appendChild(categoryHeader);
+			resultsContainer.appendChild(itemsContainer);
+
 
 			categoryHeader.addEventListener("click", () => {
 				itemsContainer.style.display = itemsContainer.style.display === "none" ? "block" : "none";
@@ -296,9 +312,35 @@ class JSONSearchModal {
 				});
 			});
 
-			this.popover.appendChild(categoryHeader);
-			this.popover.appendChild(itemsContainer);
 		});
+
+
+		// ✅ BOTTOM COMMAND BAR (Search Input + Active Collections)
+		// ✅ BOTTOM COMMAND BAR (Fixed at Bottom)
+		const commandBar = this.popover.createDiv();
+		commandBar.style.position = "absolute"; // ✅ Keeps it at the bottom of the modal
+		commandBar.style.bottom = "0";
+		commandBar.style.left = "0px";
+		commandBar.style.width = "100%";
+		commandBar.style.padding = "5px 10px";
+		commandBar.style.backgroundColor = "black";
+		commandBar.style.color = "white";
+		commandBar.style.fontSize = "12px";
+		commandBar.style.fontFamily = "monospace";
+		commandBar.style.display = "flex";
+		commandBar.style.justifyContent = "space-between";
+		commandBar.style.borderTop = "1px solid gray";
+		commandBar.style.zIndex = "10"; // ✅ Ensure it stays above content
+
+		// ✅ Active Collections (Left Side)
+		const activeCollectionsLabel = commandBar.createEl("span", {
+			text: "Active: " + this.results.map(c => c.designator).join(" | ")
+		});
+		activeCollectionsLabel.style.flexGrow = "1"; // ✅ Takes remaining space
+
+		// ✅ Append the bottom bar to the modal
+		this.popover.appendChild(resultsContainer); // ✅ Append results first
+		this.popover.appendChild(commandBar); // ✅ Append bottom bar last
 	}
 
 	updateResults(newResults: { collectionName: string; designator: string; items: { title?: string }[] }[]) {
@@ -326,7 +368,12 @@ class JSONSearchModal {
 
 		if (!document.body.contains(this.popover)) {
 			document.body.appendChild(this.popover);
+
 		}
+
+
+		// ✅ Call `render()` to construct the modal layout
+		this.render();
 	}
 
 	close() {

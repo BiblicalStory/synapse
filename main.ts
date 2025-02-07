@@ -25,12 +25,12 @@ class synapseSettingTab extends PluginSettingTab {
 
 		containerEl.createEl("h1", { text: "synapse" });
 
-		// ✅ Close search modal if settings are opened
+		/*// ✅ Close search modal if settings are opened
 		if (this.plugin.searchModal) {
 			console.log("🛑 Closing search modal because settings were opened.");
 			this.plugin.searchModal.close();
 			this.plugin.searchModal = null;
-		}
+		} */
 
 		// ✅ Toggle for enabling BiblicalStory metadata
 		new Setting(containerEl)
@@ -745,19 +745,27 @@ export default class synapse extends Plugin {
 		//run trigger detection immediately
 		this.initializeTriggerDetection();
 		//also run it when switching notes
-		this.registerEvent(
-			this.app.workspace.on("active-leaf-change", async () => {
-				console.log("Active leaf event fired!!");
-
-				if (this.searchModal) {
-					console.log("Closing search modal due to active leaf change...");
-					this.searchModal.close();
-					this.searchModal = null;
+		const observer = new MutationObserver((mutationsList) => {
+			for (const mutation of mutationsList) {
+				if (mutation.addedNodes.length) {
+					mutation.addedNodes.forEach((node) => {
+						if (node instanceof HTMLElement && node.classList.contains("modal-container")) {
+							console.log("⚙️ Settings modal detected! Closing search modal...");
+							if (this.searchModal) {
+								this.searchModal.close();
+								this.searchModal = null;
+							}
+						} this.initializeTriggerDetection();
+					});
 				}
-				//reinitialize trigger detection
-				this.initializeTriggerDetection();
-			})
-		);
+			}
+		});
+
+		// ✅ Observe changes in the document body
+		observer.observe(document.body, { childList: true, subtree: true });
+
+		// ✅ Ensure the observer stops when the plugin unloads
+		this.register(() => observer.disconnect());
 	}
 
 

@@ -1,4 +1,5 @@
 import { App, Modal, MarkdownView, Plugin, Notice, Editor, PluginSettingTab, Setting } from 'obsidian';
+import { performFuzzySearch } from "./searchEngine";
 
 // Plugin Settings Interface
 interface synapseSettings {
@@ -630,13 +631,8 @@ export default class synapse extends Plugin {
 					filteredCollections = collections;
 				} else {
 					console.log("🔍 Filtering results for:", searchQuery);
-					filteredCollections = collections.map(collection => ({
-						collectionName: collection.collectionName,
-						designator: collection.designator || "MISC",
-						items: collection.items.filter((item: any) =>
-							item.title.toLowerCase().includes(searchQuery.toLowerCase())
-						),
-					}));
+					console.log("Checking function:", performFuzzySearch);
+					filteredCollections = performFuzzySearch(collections, searchQuery);
 				}
 
 				console.log("📌 Filtered Collections:", filteredCollections);

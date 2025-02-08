@@ -247,7 +247,6 @@ class JSONSearchModal {
 		mainTitle.style.fontWeight = "bold";
 		mainTitle.style.marginBottom = "2px";
 
-
 		this.popover.appendChild(titleContainer);
 
 		this.popover.style.display = "flex";
@@ -255,29 +254,26 @@ class JSONSearchModal {
 
 		// ✅ Create a container for scrollable search results
 		const resultsContainer = this.popover.createDiv();
-		resultsContainer.style.flexGrow = "1"; // ✅ Allows it to expand inside the modal
-		resultsContainer.style.overflowY = "auto"; // ✅ Enables scrolling
-		resultsContainer.style.maxHeight = "400px"; // ✅ Adjust height to prevent overflow
-		resultsContainer.style.paddingBottom = "50px"; // ✅ Adds space for bottom bar
-
-
+		resultsContainer.style.flexGrow = "1";
+		resultsContainer.style.overflowY = "auto";
+		resultsContainer.style.maxHeight = "400px";
+		resultsContainer.style.paddingBottom = "50px";
 
 		this.results.forEach((collection) => {
-			// ✅ Generate a unique color per collection
 			if (!this.colorMap.has(collection.collectionName)) {
 				this.colorMap.set(collection.collectionName, getRandomColor());
 			}
 			const collectionColor = this.colorMap.get(collection.collectionName) || "#CCCCCC";
-			const entryColor = getModifiedColor(collectionColor, 0.85); // ✅ Slightly modified for entries
+			const entryColor = getModifiedColor(collectionColor, 0.85);
 
 			// ✅ Collection header styling
 			const categoryHeader = this.popover.createEl("h4", { text: collection.collectionName });
-			categoryHeader.style.marginTop = "25px";  // ✅ Increase top margin for more separation
-			categoryHeader.style.marginBottom = "12px";  // ✅ Add more spacing below the header
+			categoryHeader.style.marginTop = "25px";
+			categoryHeader.style.marginBottom = "12px";
 			categoryHeader.style.cursor = "pointer";
 			categoryHeader.style.color = "white";
 			categoryHeader.style.backgroundColor = collectionColor;
-			categoryHeader.style.padding = "10px"; // ✅ Slightly increase padding for better spacing
+			categoryHeader.style.padding = "10px";
 			categoryHeader.style.borderRadius = "5px";
 
 			// ✅ Entries container
@@ -287,39 +283,71 @@ class JSONSearchModal {
 			resultsContainer.appendChild(categoryHeader);
 			resultsContainer.appendChild(itemsContainer);
 
-
 			categoryHeader.addEventListener("click", () => {
 				itemsContainer.style.display = itemsContainer.style.display === "none" ? "block" : "none";
 			});
 
 			// ✅ Iterate through each entry in the collection
-			collection.items.forEach((result: { title?: string, author?: string, date?: string }) => {
+			collection.items.forEach((result: { title?: string, author?: string, date?: string, url?: string }) => {
 				const title = result.title || "Untitled";
 				const author = result.author || "Unknown Author";
 				const date = result.date || "No Date";
-				const button = itemsContainer.createEl("button", { text: `${title} | ${author} | ${date}` });
-				button.style.display = "block";
-				button.style.margin = "5px 0";
-				button.style.padding = "5px";
-				button.style.width = "100%";
-				button.style.textAlign = "left";
-				button.style.backgroundColor = entryColor; // ✅ Apply modified shade
-				button.style.color = "white";
-				button.style.border = "none";
-				button.style.borderRadius = "3px";
+				const url = result.url || "#";
 
-				button.addEventListener("click", () => {
-					this.onChoose(result);
-					this.close();
+				// ✅ Create the entry as a clickable div
+				const entryWrapper = itemsContainer.createDiv();
+				entryWrapper.style.display = "flex";
+				entryWrapper.style.justifyContent = "space-between";
+				entryWrapper.style.alignItems = "center";
+				entryWrapper.style.margin = "5px 0";
+				entryWrapper.style.padding = "5px";
+				entryWrapper.style.backgroundColor = entryColor;
+				entryWrapper.style.color = "white";
+				entryWrapper.style.border = "none";
+				entryWrapper.style.borderRadius = "3px";
+				entryWrapper.style.cursor = "pointer"; // ✅ Makes the whole div clickable
+
+				// ✅ Clicking (left-click) creates a note
+				entryWrapper.addEventListener("click", (event) => {
+					if (event.button === 0) { // ✅ Only trigger on left click
+						this.onChoose(result);
+						this.close();
+					}
 				});
+
+				// ✅ Right-click (or long-press on mobile) opens the external link
+				entryWrapper.addEventListener("contextmenu", (event) => {
+					event.preventDefault(); // ✅ Prevent default right-click menu
+					if (url && url !== "#") {
+						window.open(url, "_blank");
+					}
+				});
+
+				// ✅ Long press on mobile opens the external link
+				let touchTimer: any;
+				entryWrapper.addEventListener("touchstart", () => {
+					touchTimer = setTimeout(() => {
+						if (url && url !== "#") {
+							window.open(url, "_blank");
+						}
+					}, 500); // ✅ 500ms = long press
+				});
+				entryWrapper.addEventListener("touchend", () => {
+					clearTimeout(touchTimer);
+				});
+
+				// ✅ Create the entry text
+				const entryText = entryWrapper.createEl("span", { text: `${title} | ${author} | ${date}` });
+				entryText.style.flexGrow = "1";
+				entryText.style.paddingRight = "10px";
+
+				entryWrapper.appendChild(entryText);
 			});
-
 		});
-
 
 		// ✅ BOTTOM COMMAND BAR (Search Input + Active Collections)
 		const commandBar = this.popover.createDiv();
-		commandBar.style.position = "absolute"; // ✅ Keeps it at the bottom of the modal
+		commandBar.style.position = "absolute";
 		commandBar.style.bottom = "0";
 		commandBar.style.left = "0px";
 		commandBar.style.width = "100%";
@@ -331,43 +359,31 @@ class JSONSearchModal {
 		commandBar.style.display = "flex";
 		commandBar.style.justifyContent = "space-between";
 		commandBar.style.borderTop = "1px solid gray";
-		commandBar.style.zIndex = "10"; // ✅ Ensure it stays above content
+		commandBar.style.zIndex = "10";
 
-		// ✅ Active Collections (Left Side)
 		const activeCollectionsLabel = commandBar.createEl("span", {
 			text: "Active: " + this.results.map(c => c.designator).join(" | ")
 		});
-		activeCollectionsLabel.style.flexGrow = "1"; // ✅ Takes remaining space
+		activeCollectionsLabel.style.flexGrow = "1";
 
-		// ✅ Right Side: Search Display Text
 		const searchQueryDisplay = commandBar.createEl("span", { text: `Searching: @@${this.currentQuery}` });
 		searchQueryDisplay.style.flexGrow = "1";
 		searchQueryDisplay.style.color = "white";
 		searchQueryDisplay.style.fontSize = "12px";
 		searchQueryDisplay.style.fontFamily = "monospace";
-
-
 		searchQueryDisplay.style.textAlign = "right";
 
-
-
-		// ✅ Boolean Label (Centered)
-		const booleanLabel = commandBar.createEl("span", {
-			text: "BOOLEAN"
-		});
-		booleanLabel.style.flexGrow = "1"; // ✅ Centered between elements
+		const booleanLabel = commandBar.createEl("span", { text: "BOOLEAN" });
+		booleanLabel.style.flexGrow = "1";
 		booleanLabel.style.textAlign = "center";
-		booleanLabel.style.opacity = "0.7"; // ✅ Slightly muted to avoid distraction
+		booleanLabel.style.opacity = "0.7";
 
-		// ✅ Append both elements to the command bar
 		commandBar.appendChild(activeCollectionsLabel);
 		commandBar.appendChild(booleanLabel);
 		commandBar.appendChild(searchQueryDisplay);
 
-
-		// ✅ Append the bottom bar to the modal
-		this.popover.appendChild(resultsContainer); // ✅ Append results first
-		this.popover.appendChild(commandBar); // ✅ Append bottom bar last
+		this.popover.appendChild(resultsContainer);
+		this.popover.appendChild(commandBar);
 	}
 
 	updateResults(newResults: { collectionName: string; designator: string; items: { title?: string }[] }[], newQuery: string) {

@@ -219,7 +219,8 @@ class JSONSearchModal {
 	results: any[];
 	onChoose: (result: any) => void;
 	colorMap: Map<string, string>;
-	constructor(app: App, results: any[], onChoose: (result: any) => void, position = { top: 100, left: 100 }) {
+	currentQuery: string;
+	constructor(app: App, results: any[], onChoose: (result: any) => void, position = { top: 100, left: 100 }, currentQuery: string) {
 		this.app = app;
 		this.results = results || [];
 		this.onChoose = onChoose;
@@ -316,7 +317,6 @@ class JSONSearchModal {
 
 
 		// ✅ BOTTOM COMMAND BAR (Search Input + Active Collections)
-		// ✅ BOTTOM COMMAND BAR (Fixed at Bottom)
 		const commandBar = this.popover.createDiv();
 		commandBar.style.position = "absolute"; // ✅ Keeps it at the bottom of the modal
 		commandBar.style.bottom = "0";
@@ -338,14 +338,27 @@ class JSONSearchModal {
 		});
 		activeCollectionsLabel.style.flexGrow = "1"; // ✅ Takes remaining space
 
+		// ✅ Right Side: Search Display Text
+		const searchQueryDisplay = commandBar.createEl("span", { text: `Searching: @@${this.currentQuery}` });
+		searchQueryDisplay.style.flexGrow = "1";
+		searchQueryDisplay.style.color = "#888";
+		searchQueryDisplay.style.fontSize = "12px";
+		searchQueryDisplay.style.textAlign = "right";
+
+
+		// ✅ Append both elements to the command bar
+		commandBar.appendChild(activeCollectionsLabel);
+		commandBar.appendChild(searchQueryDisplay);
+
 		// ✅ Append the bottom bar to the modal
 		this.popover.appendChild(resultsContainer); // ✅ Append results first
 		this.popover.appendChild(commandBar); // ✅ Append bottom bar last
 	}
 
-	updateResults(newResults: { collectionName: string; designator: string; items: { title?: string }[] }[]) {
+	updateResults(newResults: { collectionName: string; designator: string; items: { title?: string }[] }[], newQuery: string) {
 		console.log("♻️ Updating modal with new results...");
 		this.results = newResults;
+		this.currentQuery = newQuery;  // ✅ Update the query
 		this.render();
 	}
 
@@ -585,6 +598,8 @@ export default class synapse extends Plugin {
 			const filePaths: string[] = [];
 
 			if (match) {
+				const currentQuery = match ? match[1].trim() : "";
+				console.log("Current Search Query:", currentQuery);
 				const searchQuery = match[1].trim();  // Extract search term after "@@"
 				console.log("🔍 Search query detected:", searchQuery);
 
@@ -688,12 +703,12 @@ export default class synapse extends Plugin {
 								this.searchModal.close();
 								this.searchModal = null;
 							}
-						}, modalPosition);
+						}, modalPosition, currentQuery);
 					} else {
 						console.log("♻️ Updating modal results...");
 						if (this.searchModal) {
 							console.log("♻️ Updating modal results...");
-							this.searchModal.updateResults(filteredCollections);
+							this.searchModal.updateResults(filteredCollections, currentQuery);
 						} else {
 							console.log("🆕 Creating a new search modal...");
 							this.searchModal = new JSONSearchModal(this.app, filteredCollections, async (result: any) => {
@@ -721,7 +736,7 @@ export default class synapse extends Plugin {
 									this.searchModal.close();
 									this.searchModal = null;
 								}
-							});
+							}, modalPosition, currentQuery);
 						}
 					}
 

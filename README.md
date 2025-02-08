@@ -20,7 +20,7 @@ synapse is only the beginning — BiblicalStory is building out a roadmap which 
 - **Boolean Operators**: Use `AND` and `OR` to refine searches (`@@Elijah AND Luke`).
 - **Fuzzy Matching**: Advanced search logic powered by Fuse.js ensures relevant results.
 - **left click**: left click automatically sets up a folder and places a new note in that folder with the metadata embedded. Once this note is created, synapse inserts an obsidian link to that note inside the editor.
-- **right click**: right click automatically follows the link that is embedded in the entry and opens the document in a separate window.
+- **right click (long press for mobile)**: right click automatically follows the link that is embedded in the entry and opens the document in a separate window.
 - **Multiple Metadata Sources**: Supports multiple structured JSON sources.
 - **Built-in Support for BiblicalStory Database**: synapse comes pre-configured to access the **BiblicalStory Database** ([www.biblicalstory.org](http://www.biblicalstory.org)), which is enabled by default.
 - **Expandable Library Support**: Users can add additional JSON metadata sources by providing their URLs in the settings panel.

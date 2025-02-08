@@ -247,10 +247,6 @@ class JSONSearchModal {
 		mainTitle.style.fontWeight = "bold";
 		mainTitle.style.marginBottom = "2px";
 
-		/*const subtitle = titleContainer.createEl("p", { text: "<remote library search>" });
-		subtitle.style.fontSize = "0.9em";
-		subtitle.style.color = "#AAAAAA";
-		subtitle.style.marginTop = "0"; */
 
 		this.popover.appendChild(titleContainer);
 

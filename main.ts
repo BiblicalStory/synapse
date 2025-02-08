@@ -341,8 +341,11 @@ class JSONSearchModal {
 		// ✅ Right Side: Search Display Text
 		const searchQueryDisplay = commandBar.createEl("span", { text: `Searching: @@${this.currentQuery}` });
 		searchQueryDisplay.style.flexGrow = "1";
-		searchQueryDisplay.style.color = "#888";
+		searchQueryDisplay.style.color = "white";
 		searchQueryDisplay.style.fontSize = "12px";
+		searchQueryDisplay.style.fontFamily = "monospace";
+
+
 		searchQueryDisplay.style.textAlign = "right";
 
 

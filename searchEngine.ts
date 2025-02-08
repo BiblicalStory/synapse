@@ -1,4 +1,5 @@
 import Fuse from "fuse.js";
+const DEBUG_MODE = false;
 
 export interface SearchableItem {
     title?: string;
@@ -10,7 +11,7 @@ export interface SearchableItem {
 }
 
 export function performFuzzySearch(collections: any[], searchQuery: string) {
-    console.log("🔍 Processing Search Query:", searchQuery);
+    if (DEBUG_MODE) console.log("🔍 Processing Search Query:", searchQuery);
 
     // ✅ Step 1: Detect AND/OR Operators (Proper Parsing)
     let searchTerms: string[];
@@ -27,7 +28,7 @@ export function performFuzzySearch(collections: any[], searchQuery: string) {
         searchTerms = searchQuery.split(/\s+/).map(term => term.trim()); // Default AND behavior
     }
 
-    console.log(`🔎 Detected ${isOrSearch ? "OR" : isAndSearch ? "AND" : "Basic"} Search`, searchTerms);
+    if (DEBUG_MODE) console.log(`🔎 Detected ${isOrSearch ? "OR" : isAndSearch ? "AND" : "Basic"} Search`, searchTerms);
 
     return collections.map(collection => {
         const fuse = new Fuse(collection.items, {

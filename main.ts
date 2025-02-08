@@ -1,5 +1,6 @@
 import { App, Modal, MarkdownView, Plugin, Notice, Editor, PluginSettingTab, Setting } from 'obsidian';
 import { performFuzzySearch } from "./searchEngine";
+const DEBUG_MODE = false;
 
 // Plugin Settings Interface
 interface synapseSettings {
@@ -28,7 +29,7 @@ class synapseSettingTab extends PluginSettingTab {
 
 		/*// ✅ Close search modal if settings are opened
 		if (this.plugin.searchModal) {
-			console.log("🛑 Closing search modal because settings were opened.");
+			if (DEBUG_MODE) console.log("🛑 Closing search modal because settings were opened.");
 			this.plugin.searchModal.close();
 			this.plugin.searchModal = null;
 		} */
@@ -132,7 +133,7 @@ async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
 	const loadJSONData = async (url: string) => {
 		try {
 			const noCacheUrl = `${url}?nocache=${Date.now()}`; // ✅ Appends unique timestamp to prevent caching
-			console.log(`Fetching metadata from: ${noCacheUrl}`);
+			if (DEBUG_MODE) console.log(`Fetching metadata from: ${noCacheUrl}`);
 
 			const response = await fetch(noCacheUrl, { method: 'GET', mode: 'cors' });
 
@@ -142,12 +143,12 @@ async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
 
 			const data = await response.json(); // ✅ Ensures JSON is correctly loaded
 
-			console.log("🔍 RAW JSON Data:", data); // ✅ Debugging to check if JSON is correctly loaded
+			if (DEBUG_MODE) console.log("🔍 RAW JSON Data:", data); // ✅ Debugging to check if JSON is correctly loaded
 
 			// ✅ Extract collection details safely
 			const collectionName = data.Collection?.name || "Unknown Collection";
 			const designator = data.Collection?.designator || "MISC"; // ✅ Extract the designator correctly
-			console.log(`✅ Checking Collection: ${collectionName}, Found Designator: ${designator}`);
+			if (DEBUG_MODE) console.log(`✅ Checking Collection: ${collectionName}, Found Designator: ${designator}`);
 
 			const categories = data.Collection?.Categories || [];
 			const items = categories.flatMap((category: any) =>
@@ -159,7 +160,7 @@ async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
 				}))
 			);
 
-			console.log(`✅ Extracted ${items.length} items from "${collectionName}" with designator: "${designator}"`);
+			if (DEBUG_MODE) console.log(`✅ Extracted ${items.length} items from "${collectionName}" with designator: "${designator}"`);
 			mergedResults.push({ url, collectionName, designator, items });
 
 		} catch (error) {
@@ -170,7 +171,7 @@ async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
 	// ✅ Load all metadata URLs dynamically (including BiblicalStory if enabled)
 	await Promise.all(filePaths.map(loadJSONData));
 
-	console.log(`✅ Merged ${mergedResults.length} collections successfully.`);
+	if (DEBUG_MODE) console.log(`✅ Merged ${mergedResults.length} collections successfully.`);
 	return mergedResults;
 }
 // Ensure Folder Exists
@@ -178,10 +179,10 @@ async function ensureFolderExists(app: App, folderPath: string): Promise<void> {
 	const folder = app.vault.getAbstractFileByPath(folderPath);
 
 	if (!folder) {
-		console.log(`Folder "${folderPath}" does not exist. Creating...`);
+		if (DEBUG_MODE) console.log(`Folder "${folderPath}" does not exist. Creating...`);
 		await app.vault.createFolder(folderPath);
 	} else {
-		console.log(`Folder "${folderPath}" already exists.`);
+		if (DEBUG_MODE) console.log(`Folder "${folderPath}" already exists.`);
 	}
 }
 
@@ -201,13 +202,13 @@ async function createNoteInHierarchy(
 
 	const existingFile = app.vault.getAbstractFileByPath(fileName);
 	if (existingFile) {
-		console.log(`File "${fileName}" already exists. Skipping creation.`);
+		if (DEBUG_MODE) console.log(`File "${fileName}" already exists. Skipping creation.`);
 		new Notice(`Note "${title}" already exists.`);
 		return fileName;  // ✅ Return correct file path
 	}
 
 	await app.vault.create(fileName, content);
-	console.log(`Note "${fileName}" created successfully.`);
+	if (DEBUG_MODE) console.log(`Note "${fileName}" created successfully.`);
 	new Notice(`Note "${title}" created.`);
 
 	return fileName;  // ✅ Return correct file path
@@ -235,7 +236,7 @@ class JSONSearchModal {
 	}
 
 	render() {
-		console.log("🔍 Rendering search popover...");
+		if (DEBUG_MODE) console.log("🔍 Rendering search popover...");
 		this.popover.empty();
 
 		// ✅ Modify heading style
@@ -374,7 +375,7 @@ class JSONSearchModal {
 	}
 
 	updateResults(newResults: { collectionName: string; designator: string; items: { title?: string }[] }[], newQuery: string) {
-		console.log("♻️ Updating modal with new results...");
+		if (DEBUG_MODE) console.log("♻️ Updating modal with new results...");
 		this.results = newResults;
 		this.currentQuery = newQuery;  // ✅ Update the query
 		this.render();
@@ -389,7 +390,7 @@ class JSONSearchModal {
 		let adjustedTop = position.top;
 		if (adjustedTop + modalHeight > windowHeight) {
 			adjustedTop = windowHeight - modalHeight - 20; // Keep some space
-			console.log("📌 Adjusting modal position to fit within screen.");
+			if (DEBUG_MODE) console.log("📌 Adjusting modal position to fit within screen.");
 		}
 
 		Object.assign(this.popover.style, {
@@ -599,7 +600,7 @@ export default class synapse extends Plugin {
 	private editorChangeHandler: ((editor: Editor) => Promise<void>) | null = null;
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-		console.log("Loaded settings:", this.settings);
+		if (DEBUG_MODE) console.log("Loaded settings:", this.settings);
 	}
 	async saveSettings() {
 		await this.saveData(this.settings);
@@ -607,7 +608,7 @@ export default class synapse extends Plugin {
 
 
 	async checkForTrigger(editor: Editor) {
-		console.log("🔍 checkForTrigger function called!");
+		if (DEBUG_MODE) console.log("🔍 checkForTrigger function called!");
 
 		try {
 			const cursor = editor.getCursor();
@@ -617,9 +618,9 @@ export default class synapse extends Plugin {
 
 			if (match) {
 				const currentQuery = match ? match[1].trim() : "";
-				console.log("Current Search Query:", currentQuery);
+				if (DEBUG_MODE) console.log("Current Search Query:", currentQuery);
 				const searchQuery = match[1].trim();  // Extract search term after "@@"
-				console.log("🔍 Search query detected:", searchQuery);
+				if (DEBUG_MODE) console.log("🔍 Search query detected:", searchQuery);
 
 				if (this.settings.enableBiblicalStory) {
 					filePaths.push("http://20.115.87.69/knb1_public/BST_Site_Metadata/metadata.json");
@@ -634,22 +635,22 @@ export default class synapse extends Plugin {
 					filePaths.push(...enabledUrls);
 				}
 
-				console.log("📡 Loading metadata from URLs:", filePaths);
+				if (DEBUG_MODE) console.log("📡 Loading metadata from URLs:", filePaths);
 				const collections = await loadAndMergeJSONs(filePaths);
-				console.log("📜 Raw collections:", collections);
+				if (DEBUG_MODE) console.log("📜 Raw collections:", collections);
 
 				// ✅ If no search query, show everything
 				let filteredCollections;
 				if (searchQuery.length === 0) {
-					console.log("🟢 No search term. Showing all results.");
+					if (DEBUG_MODE) console.log("🟢 No search term. Showing all results.");
 					filteredCollections = collections;
 				} else {
-					console.log("🔍 Filtering results for:", searchQuery);
-					console.log("Checking function:", performFuzzySearch);
+					if (DEBUG_MODE) console.log("🔍 Filtering results for:", searchQuery);
+					if (DEBUG_MODE) console.log("Checking function:", performFuzzySearch);
 					filteredCollections = performFuzzySearch(collections, searchQuery);
 				}
 
-				console.log("📌 Filtered Collections:", filteredCollections);
+				if (DEBUG_MODE) console.log("📌 Filtered Collections:", filteredCollections);
 
 				// 🔥 Fix Cursor Position **Immediately**
 				setTimeout(() => {
@@ -671,7 +672,7 @@ export default class synapse extends Plugin {
 								top: coords.bottom + 5,
 								left: coords.left
 							};
-							console.log("📌 Retrieved Cursor Coordinates:", coords);
+							if (DEBUG_MODE) console.log("📌 Retrieved Cursor Coordinates:", coords);
 						} else {
 							console.warn("⚠️ coordsAtPos() returned null! Using fallback.");
 						}
@@ -680,15 +681,15 @@ export default class synapse extends Plugin {
 					}
 
 					// 🔥 Immediately Open Modal Even Before Typing
-					console.log("🛠 Preparing to open modal at:", modalPosition);
+					if (DEBUG_MODE) console.log("🛠 Preparing to open modal at:", modalPosition);
 					if (!this.searchModal) {
-						console.log("🆕 Creating and opening modal...");
+						if (DEBUG_MODE) console.log("🆕 Creating and opening modal...");
 						this.searchModal = new JSONSearchModal(this.app, filteredCollections, async (result: any) => {
 							if (!result) {
 								console.error("❌ No result selected.");
 								return;
 							}
-							console.log(result.collectionName)
+							if (DEBUG_MODE) console.log(result.collectionName)
 							const content = `COLLECTION: ${result.collectionName}\nTITLE: "${result.title}"\nAUTHOR: ${result.author}\nPUBLISHER: ${result.publisher}\nDATE: ${result.date}\nURL: ${result.url}\nRIS: ${result.ris}\nDESCRIPTION: ${result.description || ""}\n\n-----------------------------------\nWRITE BELOW ->\n\n`;
 
 							const filePath = await createNoteInHierarchy(
@@ -718,12 +719,12 @@ export default class synapse extends Plugin {
 							}
 						}, modalPosition, currentQuery);
 					} else {
-						console.log("♻️ Updating modal results...");
+						if (DEBUG_MODE) console.log("♻️ Updating modal results...");
 						if (this.searchModal) {
-							console.log("♻️ Updating modal results...");
+							if (DEBUG_MODE) console.log("♻️ Updating modal results...");
 							this.searchModal.updateResults(filteredCollections, currentQuery);
 						} else {
-							console.log("🆕 Creating a new search modal...");
+							if (DEBUG_MODE) console.log("🆕 Creating a new search modal...");
 							this.searchModal = new JSONSearchModal(this.app, filteredCollections, async (result: any) => {
 								if (!result) {
 									console.error("❌ No result selected.");
@@ -753,11 +754,11 @@ export default class synapse extends Plugin {
 						}
 					}
 
-					console.log("📌 Opening modal at:", modalPosition);
+					if (DEBUG_MODE) console.log("📌 Opening modal at:", modalPosition);
 					this.searchModal.open(modalPosition);
 				}, 1);  // 🔥 **1ms Delay Forces Cursor Update**
 			} else {
-				console.log("❌ No '@@' detected, closing search modal.");
+				if (DEBUG_MODE) console.log("❌ No '@@' detected, closing search modal.");
 				if (this.searchModal) {
 					this.searchModal.close();
 					this.searchModal = null;
@@ -770,12 +771,12 @@ export default class synapse extends Plugin {
 
 	///////BEGINNING OF ONLOAD//////
 	async onload() {
-		console.log("synapse loaded!");
+		if (DEBUG_MODE) console.log("synapse loaded!");
 		await this.loadSettings();
 
 		//register the settings tab
 		this.addSettingTab(new synapseSettingTab(this.app, this));
-		console.log("Settings loaded");
+		if (DEBUG_MODE) console.log("Settings loaded");
 		//run trigger detection immediately
 		this.initializeTriggerDetection();
 		//also run it when switching notes
@@ -784,7 +785,7 @@ export default class synapse extends Plugin {
 				if (mutation.addedNodes.length) {
 					mutation.addedNodes.forEach((node) => {
 						if (node instanceof HTMLElement && node.classList.contains("modal-container")) {
-							console.log("⚙️ Settings modal detected! Closing search modal...");
+							if (DEBUG_MODE) console.log("⚙️ Settings modal detected! Closing search modal...");
 							if (this.searchModal) {
 								this.searchModal.close();
 								this.searchModal = null;
@@ -807,13 +808,13 @@ export default class synapse extends Plugin {
 
 
 	initializeTriggerDetection() {
-		console.log("Initializing Trigger Detection...");
+		if (DEBUG_MODE) console.log("Initializing Trigger Detection...");
 
 		const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 		if (!view) return;
 
 		const editor = view.editor;
-		console.log("Editor detected:", editor);
+		if (DEBUG_MODE) console.log("Editor detected:", editor);
 
 		// ✅ Remove the old listener if it exists
 		if (this.editorChangeHandler) {
@@ -822,7 +823,7 @@ export default class synapse extends Plugin {
 
 		// ✅ Define and store the new event handler
 		this.editorChangeHandler = async (editor: Editor) => {
-			console.log("Editor change detected!");
+			if (DEBUG_MODE) console.log("Editor change detected!");
 			await this.checkForTrigger(editor);
 		};
 
@@ -830,7 +831,7 @@ export default class synapse extends Plugin {
 		this.app.workspace.on("editor-change", this.editorChangeHandler);
 	}
 	onunload() {
-		console.log("MyPlugin unloaded!");
+		if (DEBUG_MODE) console.log("MyPlugin unloaded!");
 
 		// ✅ Remove the event listener before unloading
 		if (this.editorChangeHandler) {

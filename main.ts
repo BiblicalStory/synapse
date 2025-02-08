@@ -246,10 +246,10 @@ class JSONSearchModal {
 		mainTitle.style.fontWeight = "bold";
 		mainTitle.style.marginBottom = "2px";
 
-		const subtitle = titleContainer.createEl("p", { text: "<remote library search>" });
+		/*const subtitle = titleContainer.createEl("p", { text: "<remote library search>" });
 		subtitle.style.fontSize = "0.9em";
 		subtitle.style.color = "#AAAAAA";
-		subtitle.style.marginTop = "0";
+		subtitle.style.marginTop = "0"; */
 
 		this.popover.appendChild(titleContainer);
 
@@ -296,8 +296,11 @@ class JSONSearchModal {
 			});
 
 			// ✅ Iterate through each entry in the collection
-			collection.items.forEach((result: { title?: string }) => {
-				const button = itemsContainer.createEl("button", { text: result.title || "Untitled" });
+			collection.items.forEach((result: { title?: string, author?: string, date?: string }) => {
+				const title = result.title || "Untitled";
+				const author = result.author || "Unknown Author";
+				const date = result.date || "No Date";
+				const button = itemsContainer.createEl("button", { text: `${title} | ${author} | ${date}` });
 				button.style.display = "block";
 				button.style.margin = "5px 0";
 				button.style.padding = "5px";
@@ -350,9 +353,20 @@ class JSONSearchModal {
 		searchQueryDisplay.style.textAlign = "right";
 
 
+
+		// ✅ Boolean Label (Centered)
+		const booleanLabel = commandBar.createEl("span", {
+			text: "BOOLEAN"
+		});
+		booleanLabel.style.flexGrow = "1"; // ✅ Centered between elements
+		booleanLabel.style.textAlign = "center";
+		booleanLabel.style.opacity = "0.7"; // ✅ Slightly muted to avoid distraction
+
 		// ✅ Append both elements to the command bar
 		commandBar.appendChild(activeCollectionsLabel);
+		commandBar.appendChild(booleanLabel);
 		commandBar.appendChild(searchQueryDisplay);
+
 
 		// ✅ Append the bottom bar to the modal
 		this.popover.appendChild(resultsContainer); // ✅ Append results first

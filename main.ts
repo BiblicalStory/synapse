@@ -652,17 +652,15 @@ export default class synapse extends Plugin {
 				if (DEBUG_MODE) console.log("📜 Raw collections:", collections);
 
 				// ✅ If no search query, show everything
-				let filteredCollections;
+				let filteredCollections: { collectionName: string; designator: string; items: any[] }[];
 				if (searchQuery.length === 0) {
 					if (DEBUG_MODE) console.log("🟢 No search term. Showing all results.");
 					filteredCollections = collections;
 				} else {
 					if (DEBUG_MODE) console.log("🔍 Filtering results for:", searchQuery);
 					if (DEBUG_MODE) console.log("Checking function:", performFuzzySearch);
-					filteredCollections = performFuzzySearch(collections, searchQuery);
+					let filteredCollections = performFuzzySearch(collections, searchQuery);
 				}
-
-				if (DEBUG_MODE) console.log("📌 Filtered Collections:", filteredCollections);
 
 				// 🔥 Fix Cursor Position **Immediately**
 				setTimeout(() => {

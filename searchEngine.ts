@@ -10,7 +10,7 @@ export interface SearchableItem {
     tags?: string;
 }
 
-export function performFuzzySearch(collections: any[], searchQuery: string) {
+export function performFuzzySearch(collections: any[], searchQuery: string): { collectionName: string; designator: string; items: any[] }[] {
     if (DEBUG_MODE) console.log("🔍 Processing Search Query:", searchQuery);
 
     // ✅ Step 1: Detect AND/OR Operators (Proper Parsing)

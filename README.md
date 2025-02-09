@@ -1,3 +1,7 @@
+README
+synapse v. 1.0.0
+copyright 2025 BiblicalStory Incorporated
+
 # synapse README (v.1.0.0)
 
 
@@ -57,4 +61,5 @@ Each metadata source follows this structured JSON format:
 
 NOTE: To simplify metadata creation, a Python script is available to convert structured spreadsheets into the required JSON format. Alternatively users may write their own.
 
-
+synapse v. 1.0.0
+copyright 2025 BiblicalStory Incorporated

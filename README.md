@@ -33,7 +33,7 @@ synapse is only the beginning — BiblicalStory is building out a roadmap which 
 
 Each metadata source follows this structured JSON format:
 
-```json
+
 {
     "Collection": {
         "name": "BiblicalStory",
@@ -59,7 +59,8 @@ Each metadata source follows this structured JSON format:
     }
 }
 
-NOTE: To simplify metadata creation, a Python script is available to convert structured spreadsheets into the required JSON format. Alternatively users may write their own.
+
+NOTE: python script is available and to be released to assist in creation of JSON databases in the synapse-JSON protocol.
 
 synapse v. 1.0.0
 copyright 2025 BiblicalStory Incorporated

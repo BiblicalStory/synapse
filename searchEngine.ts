@@ -1,5 +1,5 @@
 import Fuse from "fuse.js";
-const DEBUG_MODE = false;
+const DEBUG_MODE = true;
 
 export interface SearchableItem {
     title?: string;
@@ -43,6 +43,7 @@ export function performFuzzySearch(collections: any[], searchQuery: string): { c
             // ✅ OR Search: Merge results from separate searches
             searchTerms.forEach(term => {
                 const results = fuse.search(term).map(result => result.item);
+                if (DEBUG_MODE) console.log("Fuzzy search results, Sam:", results);
                 matchedItems.push(...results);
             });
 

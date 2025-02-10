@@ -1,6 +1,6 @@
 import { App, Modal, MarkdownView, Plugin, Notice, Editor, PluginSettingTab, Setting } from 'obsidian';
 import { performFuzzySearch } from "./searchEngine";
-const DEBUG_MODE = false;
+const DEBUG_MODE = true;
 
 // Plugin Settings Interface
 interface synapseSettings {
@@ -239,6 +239,11 @@ class JSONSearchModal {
 		if (DEBUG_MODE) console.log("🔍 Rendering search popover...");
 		this.popover.empty();
 
+		if (!this.results) {
+			console.error("🚨 ERROR: this.results is undefined! Search may not be processing correctly.");
+			return;
+		}
+
 		// ✅ Modify heading style
 		const titleContainer = this.popover.createDiv();
 		titleContainer.style.textAlign = "left";
@@ -387,9 +392,15 @@ class JSONSearchModal {
 	}
 
 	updateResults(newResults: { collectionName: string; designator: string; items: { title?: string }[] }[], newQuery: string) {
-		if (DEBUG_MODE) console.log("♻️ Updating modal with new results...");
+		console.log("♻️ updateResults called. Incoming data:", newResults);
+
+		if (!newResults || newResults.length === 0) {
+			console.error("🚨 ERROR: newResults is EMPTY or UNDEFINED!");
+			return; // Stops execution if nothing is there
+		}
+
 		this.results = newResults;
-		this.currentQuery = newQuery;  // ✅ Update the query
+		this.currentQuery = newQuery;
 		this.render();
 	}
 
@@ -654,12 +665,15 @@ export default class synapse extends Plugin {
 				// ✅ If no search query, show everything
 				let filteredCollections: { collectionName: string; designator: string; items: any[] }[];
 				if (searchQuery.length === 0) {
-					if (DEBUG_MODE) console.log("🟢 No search term. Showing all results.");
+					console.log("🟢 No search term. Showing all results.");
 					filteredCollections = collections;
 				} else {
-					if (DEBUG_MODE) console.log("🔍 Filtering results for:", searchQuery);
-					if (DEBUG_MODE) console.log("Checking function:", performFuzzySearch);
-					let filteredCollections = performFuzzySearch(collections, searchQuery);
+					console.log("🔍 Filtering results for:", searchQuery);
+					filteredCollections = performFuzzySearch(collections, searchQuery);
+
+					if (!filteredCollections || filteredCollections.length === 0) {
+						console.error("🚨 ERROR: performFuzzySearch returned EMPTY results!");
+					}
 				}
 
 				// 🔥 Fix Cursor Position **Immediately**

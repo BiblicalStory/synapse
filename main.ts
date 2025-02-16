@@ -148,8 +148,12 @@ async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
 			// ✅ Extract collection details safely
 			const collectionName = data.Collection?.name || "Unknown Collection";
 			const designator = data.Collection?.designator || "MISC"; // ✅ Extract the designator correctly
+			const collectionURL = data.Collection?.url || null;
+			if (DEBUG_MODE) console.log(`📡 Raw Collection URL from JSON:`, data.Collection?.url);
 			if (DEBUG_MODE) console.log(`✅ Checking Collection: ${collectionName}, Found Designator: ${designator}`);
-
+			if (DEBUG_MODE) {
+				console.log(`📡 Extracted Collection URL:`, collectionURL);
+			}
 			const categories = data.Collection?.Categories || [];
 			const items = categories.flatMap((category: any) =>
 				(category.items || []).map((item: any) => ({
@@ -161,7 +165,12 @@ async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
 			);
 
 			if (DEBUG_MODE) console.log(`✅ Extracted ${items.length} items from "${collectionName}" with designator: "${designator}"`);
-			mergedResults.push({ url, collectionName, designator, items });
+			mergedResults.push({
+				collectionName,
+				designator,
+				url: collectionURL,  // ✅ Ensure it's stored properly 
+				items
+			});
 
 		} catch (error) {
 			console.error(`❌ Error loading JSON from ${url}:`, error);
@@ -233,7 +242,10 @@ class JSONSearchModal {
 
 		this.render();
 		this.open(position);
+		if (DEBUG_MODE) console.log("📜 Raw collections being passed to JSONSearchModal:", results);
 	}
+
+
 
 	render() {
 		if (DEBUG_MODE) console.log("🔍 Rendering search popover...");
@@ -280,6 +292,63 @@ class JSONSearchModal {
 			categoryHeader.style.backgroundColor = collectionColor;
 			categoryHeader.style.padding = "10px";
 			categoryHeader.style.borderRadius = "5px";
+
+			// ✅ Pull homepage from "Collection.url", NOT from item URLs
+			// ✅ Extract homepage URL from "Collection.url", NOT the JSON source URL
+			console.log("🧐 Full Collection Object:", collection);
+			console.log("🔍 Extracted Collection URL:", collection.url);
+
+			let collectionURL = collection?.url || "#";
+
+			if (collectionURL && !collectionURL.startsWith("http")) {
+				collectionURL = "https://" + collectionURL;  // ✅ Force proper URL format
+			}
+
+			//✅ Fallback check: Ensure it's NOT a JSON file
+			if (collectionURL.endsWith(".json") || collectionURL.includes("metadata.json")) {
+				console.warn("⚠️ Detected JSON instead of homepage! Resetting collectionURL.");
+				collectionURL = "#"; // Prevent opening the wrong link
+			}
+
+			//✅ Ensure proper "https://" format if missing
+			if (collectionURL !== "#" && !collectionURL.startsWith("http")) {
+				collectionURL = collectionURL;
+			}
+
+			console.log(`🌍 Final Collection URL: ${collectionURL}`);
+
+			// 🖱️ Right-click behavior
+			categoryHeader.addEventListener("contextmenu", (event) => {
+				event.preventDefault();
+				console.log(`🖱️ Right-click detected. Opening: ${collectionURL}`);
+				console.log("Full collection object:", collection);
+				console.log("Extracted collection URL:", collection.url);
+
+				if (collectionURL !== "#") {
+					window.open(collectionURL, "_blank");
+				} else {
+					console.warn("⚠️ No valid URL found for this collection.");
+				}
+			});
+
+			// 📱 Long press (mobile) behavior
+			let touchTimer: any;
+			categoryHeader.addEventListener("touchstart", () => {
+				touchTimer = setTimeout(() => {
+					console.log(`📱 Long press detected. Opening: ${collectionURL}`);
+					if (collectionURL !== "#") {
+						window.open(collectionURL, "_blank");
+					}
+				}, 500);
+			});
+			categoryHeader.addEventListener("touchend", () => {
+				clearTimeout(touchTimer);
+			});
+
+			categoryHeader.addEventListener("touchend", () => {
+				clearTimeout(touchTimer); // ✅ Cancel if released early
+			});
+
 
 			// ✅ Entries container
 			const itemsContainer = resultsContainer.createDiv();
@@ -392,10 +461,10 @@ class JSONSearchModal {
 	}
 
 	updateResults(newResults: { collectionName: string; designator: string; items: { title?: string }[] }[], newQuery: string) {
-		console.log("♻️ updateResults called. Incoming data:", newResults);
+		if (DEBUG_MODE) console.log("♻️ updateResults called. Incoming data:", newResults);
 
 		if (!newResults || newResults.length === 0) {
-			console.error("🚨 ERROR: newResults is EMPTY or UNDEFINED!");
+			if (DEBUG_MODE) console.error("🚨 ERROR: newResults is EMPTY or UNDEFINED!");
 			return; // Stops execution if nothing is there
 		}
 
@@ -665,10 +734,10 @@ export default class synapse extends Plugin {
 				// ✅ If no search query, show everything
 				let filteredCollections: { collectionName: string; designator: string; items: any[] }[];
 				if (searchQuery.length === 0) {
-					console.log("🟢 No search term. Showing all results.");
+					if (DEBUG_MODE) console.log("🟢 No search term. Showing all results.");
 					filteredCollections = collections;
 				} else {
-					console.log("🔍 Filtering results for:", searchQuery);
+					if (DEBUG_MODE) console.log("🔍 Filtering results for:", searchQuery);
 					filteredCollections = performFuzzySearch(collections, searchQuery);
 
 					if (!filteredCollections || filteredCollections.length === 0) {
@@ -817,6 +886,16 @@ export default class synapse extends Plugin {
 						} this.initializeTriggerDetection();
 					});
 				}
+			}
+		});
+
+
+
+		document.addEventListener("click", (event) => {
+			if (this.searchModal && !this.searchModal.popover.contains(event.target as Node)) {
+				if (DEBUG_MODE) console.log("Clicked outside search modal. Closing...");
+				this.searchModal.close();
+				this.initializeTriggerDetection();
 			}
 		});
 

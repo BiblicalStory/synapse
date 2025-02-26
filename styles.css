@@ -6,3 +6,14 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+.ris-dropzone {
+    border: 2px dashed var(--text-normal);
+    padding: 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.ris-dropzone:hover {
+    background-color: var(--background-modifier-hover);
+}

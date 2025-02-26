@@ -13,6 +13,85 @@ const DEFAULT_SETTINGS: synapseSettings = {
 	metadataUrls: [],
 };
 
+
+function parseRIS(risContent: string): any[] {
+	const entries: any[] = [];
+	const lines = risContent.split("\n");
+
+	let currentEntry: Record<string, string> = {};
+
+	for (const line of lines) {
+		const match = line.match(/^([A-Z0-9]{2})  - (.*)$/);
+		if (match) {
+			const [, key, value] = match;
+
+			if (key === "TY") {
+				if (Object.keys(currentEntry).length > 0) {
+					entries.push(currentEntry);
+				}
+				currentEntry = {};
+			}
+
+			currentEntry[key] = value;
+		}
+	}
+
+	if (Object.keys(currentEntry).length > 0) {
+		entries.push(currentEntry);
+	}
+
+	return entries;
+}
+
+async function processDroppedRIS(app: App, risContent: string) {
+	try {
+		console.log("📄 Processing RIS content...");
+		const entries = parseRIS(risContent); // Your existing RIS parser function
+
+		// ✅ Create JSON structure
+		const collectionJSON = {
+			Collection: {
+				name: "Local RMS",
+				designator: "LOC",
+				url: null,
+				Categories: [
+					{
+						name: "Imported References",
+						items: entries
+					}
+				]
+			}
+		};
+
+		// ✅ Save as localrms.json in vault root
+		const jsonPath = "localrms.json";
+		await app.vault.adapter.write(jsonPath, JSON.stringify(collectionJSON, null, 2));
+		console.log(`✅ Converted RIS to JSON: ${jsonPath}`);
+
+		// ✅ Refresh Synapse search modal to load new data
+		await updateLocalRMS(app, jsonPath);
+
+		alert("✅ RIS file successfully imported and saved as localrms.json!");
+	} catch (error) {
+		console.error("❌ Error processing RIS file:", error);
+		alert("❌ Failed to process the RIS file.");
+	}
+}
+
+async function updateLocalRMS(app: App, jsonPath: string) {
+	try {
+		const content = await app.vault.adapter.read(jsonPath);
+		const localRMSData = JSON.parse(content);
+
+		// ✅ Merge new data into Synapse metadata
+		await loadAndMergeJSONs([jsonPath]);
+
+		console.log(`🔄 Synapse metadata updated from ${jsonPath}`);
+	} catch (error) {
+		console.error("❌ Failed to update Local RMS:", error);
+	}
+}
+
 class synapseSettingTab extends PluginSettingTab {
 	plugin: synapse;
 
@@ -122,6 +201,52 @@ class synapseSettingTab extends PluginSettingTab {
 						}
 					})
 			);
+
+		// ✅ Drag-and-Drop RIS Import
+		new Setting(containerEl)
+			.setName("Import RIS File")
+			.setDesc("Drag and drop an RIS file here to convert it to localrms.json")
+			.then(setting => {
+				const dropzone = setting.controlEl.createEl("div", { cls: "ris-dropzone" });
+				dropzone.innerText = "Drop RIS File Here";
+
+				// ✅ Style the drop zone
+				Object.assign(dropzone.style, {
+					border: "2px dashed var(--text-normal)",
+					padding: "10px",
+					textAlign: "center",
+					cursor: "pointer",
+				});
+
+				// ✅ Drag & Drop Events
+				dropzone.addEventListener("dragover", (e) => {
+					e.preventDefault();
+					dropzone.style.backgroundColor = "var(--background-modifier-hover)";
+				});
+				dropzone.addEventListener("dragleave", () => {
+					dropzone.style.backgroundColor = "";
+				});
+				dropzone.addEventListener("drop", async (e) => {
+					e.preventDefault();
+					dropzone.style.backgroundColor = "";
+
+					const files = e.dataTransfer?.files;
+					if (files && files.length > 0) {
+						const file = files[0];
+
+						if (file.name.endsWith(".ris")) {
+							console.log(`📥 Received RIS file: ${file.name}`);
+							const arrayBuffer = await file.arrayBuffer();
+							const textContent = new TextDecoder("utf-8").decode(arrayBuffer);
+
+							// ✅ Process RIS Content
+							await processDroppedRIS(this.plugin.app, textContent);
+						} else {
+							alert("❌ Please drop a valid .RIS file.");
+						}
+					}
+				});
+			});
 	}
 }
 

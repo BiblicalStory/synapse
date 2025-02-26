@@ -204,7 +204,7 @@ async function createNoteInHierarchy(
 	designator: string,
 	categoryName: string
 ): Promise<string> {  // ✅ Now returns the file path
-	const folderPath = `(snpse) ${designator}_${collectionName}/${categoryName}`;
+	const folderPath = `(s) ${designator}_${collectionName}/${categoryName}`;
 	const fileName = `${folderPath}/${title.replace(/[^a-zA-Z0-9\-\–\—\_\']/g, " ")}.md`;
 
 	await ensureFolderExists(app, folderPath);
@@ -262,7 +262,7 @@ class JSONSearchModal {
 
 		const mainTitle = titleContainer.createEl("h2", { text: "synapse" });
 		mainTitle.style.fontWeight = "bold";
-		mainTitle.style.marginBottom = "2px";
+		mainTitle.style.marginBottom = "3px";
 
 		this.popover.appendChild(titleContainer);
 
@@ -474,22 +474,31 @@ class JSONSearchModal {
 	}
 
 	open(position = { top: 100, left: 100 }) {
-		// Get window height and modal height
-		const modalHeight = 500; // Assumed max height
+		const modalWidth = 600; // Assuming modal width
+		const modalHeight = 500; // Assuming modal height
+		const padding = 20; // Padding to keep some space from edges
+
+		// Ensure modal stays within the window width
+		let adjustedLeft = position.left;
+		let adjustedTop = position.top;
+
+		const windowWidth = window.innerWidth;
 		const windowHeight = window.innerHeight;
 
-		// Calculate bottom position of the modal
-		let adjustedTop = position.top;
-		if (adjustedTop + modalHeight > windowHeight) {
-			adjustedTop = windowHeight - modalHeight - 20; // Keep some space
-			if (DEBUG_MODE) console.log("📌 Adjusting modal position to fit within screen.");
+		if (adjustedLeft + modalWidth > windowWidth - padding) {
+			adjustedLeft = windowWidth - modalWidth - padding;
+		}
+
+		// Ensure modal does not go beyond the top of the screen
+		if (adjustedTop + modalHeight > windowHeight - padding) {
+			adjustedTop = windowHeight - modalHeight - padding;
 		}
 
 		Object.assign(this.popover.style, {
 			position: "absolute",
-			top: `${Math.max(adjustedTop, 20)}px`,  // Ensure it's not off-screen
-			left: `${Math.max(position.left - 100, 20)}px`,
-			width: "600px",
+			top: `${Math.max(adjustedTop, padding)}px`,
+			left: `${Math.max(adjustedLeft, padding)}px`,
+			width: `${modalWidth}px`,
 			maxHeight: `${modalHeight}px`,
 			overflowY: "auto",
 			background: "black",

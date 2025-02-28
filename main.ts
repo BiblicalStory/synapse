@@ -13,23 +13,28 @@ const DEFAULT_SETTINGS: synapseSettings = {
 	metadataUrls: [],
 };
 
-
 function parseRIS(risContent: string): any[] {
 	const entries: any[] = [];
-	const lines = risContent.split("\n");
-
+	const lines = risContent.split(/\r?\n/);
+	console.log("📃 Parsed Lines:", lines);
 	let currentEntry: Record<string, string> = {};
-
+	console.log("RAW RIS CONTENT:", risContent);
 	for (const line of lines) {
+		console.log("looping over line:", line);
+		console.log("🔍 Checking line:", JSON.stringify(line));
 		const match = line.match(/^([A-Z0-9]{2})  - (.*)$/);
+		console.log("📄 RIS lines detected:", lines.length);
+		console.log("Checking line:", line);
 		if (match) {
 			const [, key, value] = match;
-
+			console.log("parseRIS function is running!");
 			if (key === "TY") {
 				if (Object.keys(currentEntry).length > 0) {
-					entries.push(currentEntry);
+					console.log("here's the current entry SB:", currentEntry);
+					entries.push(transformRIS(currentEntry));
 				}
 				currentEntry = {};
+				console.log("Found new TY entry, resetting:", currentEntry);
 			}
 
 			currentEntry[key] = value;
@@ -37,16 +42,37 @@ function parseRIS(risContent: string): any[] {
 	}
 
 	if (Object.keys(currentEntry).length > 0) {
-		entries.push(currentEntry);
+		entries.push(transformRIS(currentEntry));
 	}
 
+	console.log("🧐 Parsed RIS Entries:", entries); // Debug output
 	return entries;
+}
+
+function transformRIS(entry: Record<string, string>) {
+	return {
+		title: entry["TI"] || "Untitled",
+		author: entry["AU"] || "Unknown Author",
+		publisher: entry["PB"] || "Unknown Publisher",
+		date: entry["PY"] || "No Date",
+		url: entry["UR"] || "",
+		description: entry["ST"] || "",
+		ris: JSON.stringify(entry, null, 2) // Store full RIS entry for reference
+	};
 }
 
 async function processDroppedRIS(app: App, risContent: string) {
 	try {
 		console.log("📄 Processing RIS content...");
-		const entries = parseRIS(risContent); // Your existing RIS parser function
+		const entries = parseRIS(risContent);
+
+		if (entries.length === 0) {
+			console.error("❌ No entries were extracted from the RIS file!");
+			new Notice("❌ Failed to extract entries from the RIS file.");
+			return;
+		}
+
+		console.log("✅ Successfully extracted RIS entries:", entries);
 
 		// ✅ Create JSON structure
 		const collectionJSON = {
@@ -63,24 +89,102 @@ async function processDroppedRIS(app: App, risContent: string) {
 			}
 		};
 
+		console.log("🔍 JSON Structure to be Saved:", JSON.stringify(collectionJSON, null, 2));
+
 		// ✅ Save as localrms.json in vault root
 		const jsonPath = "localrms.json";
 		await app.vault.adapter.write(jsonPath, JSON.stringify(collectionJSON, null, 2));
 		console.log(`✅ Converted RIS to JSON: ${jsonPath}`);
 
+		// ✅ Double-check if file actually exists after saving
+		const verifyContent = await app.vault.adapter.read(jsonPath);
+		console.log("🔄 Verified Saved JSON:", verifyContent);
+
 		// ✅ Refresh Synapse search modal to load new data
 		await updateLocalRMS(app, jsonPath);
 
-		alert("✅ RIS file successfully imported and saved as localrms.json!");
+		new RISConvertedModal(app, jsonPath).open();
 	} catch (error) {
 		console.error("❌ Error processing RIS file:", error);
-		alert("❌ Failed to process the RIS file.");
+		new Notice("❌ Failed to process the RIS file.");
+	}
+}
+
+
+class RISConvertedModal extends Modal {
+	filePath: string;
+
+	constructor(app: App, filePath: string) {
+		super(app);
+		this.filePath = filePath;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+
+		contentEl.createEl("h2", { text: "RIS File Converted" });
+		contentEl.createEl("p", { text: `Your RIS file has been successfully converted and saved as "${this.filePath}".` });
+
+		const addButton = contentEl.createEl("button", { text: "Add as Metadata Source" });
+		addButton.style.marginRight = "10px";
+		addButton.addEventListener("click", async () => {
+			const pluginManager = (this.app as any).plugins; // ✅ Access plugin manager safely
+			const synapsePlugin = pluginManager.getPlugin("synapse"); // ✅ Get the Synapse plugin
+
+			if (!synapsePlugin) {
+				new Notice("❌ Synapse plugin not found. Cannot add metadata source.");
+				return;
+			}
+			await addLocalMetadataSource(this.app, this.filePath, synapsePlugin);
+			this.close();
+		});
+
+		const closeButton = contentEl.createEl("button", { text: "Close" });
+		closeButton.addEventListener("click", () => this.close());
+
+		contentEl.appendChild(addButton);
+		contentEl.appendChild(closeButton);
+	}
+
+	onClose() {
+		this.contentEl.empty();
+	}
+}
+
+async function addLocalMetadataSource(app: App, filePath: string, plugin: any) {
+	if (!plugin) {
+		console.error("❌ Synapse plugin not found!");
+		new Notice("❌ Synapse plugin not found. Cannot add metadata source.");
+		return;
+	}
+
+	const metadataEntry = { url: filePath, enabled: true };
+
+	console.log("🛠 Checking existing metadata sources...");
+
+	if (!plugin.settings.metadataUrls.some((entry: { url: string; enabled: boolean }) => entry.url === metadataEntry.url)) {
+		console.log("✅ Adding new metadata source:", metadataEntry.url);
+		plugin.settings.metadataUrls.push(metadataEntry);
+		await plugin.saveSettings();
+		new Notice(`✅ Added "${filePath}" as a metadata source!`);
+	} else {
+		console.warn("⚠️ Metadata source already exists:", metadataEntry.url);
+		new Notice(`⚠️ Metadata source already exists: ${filePath}`);
 	}
 }
 
 async function updateLocalRMS(app: App, jsonPath: string) {
 	try {
+		if (!jsonPath) {
+			console.error("❌ JSON path is undefined!");
+			return;
+		}
+
+		console.log("📂 Attempting to load JSON:", jsonPath);
 		const content = await app.vault.adapter.read(jsonPath);
+		console.log("📂 Loaded JSON Content:", content);
+
 		const localRMSData = JSON.parse(content);
 
 		// ✅ Merge new data into Synapse metadata
@@ -88,7 +192,8 @@ async function updateLocalRMS(app: App, jsonPath: string) {
 
 		console.log(`🔄 Synapse metadata updated from ${jsonPath}`);
 	} catch (error) {
-		console.error("❌ Failed to update Local RMS:", error);
+		console.error(`❌ Failed to update Local RMS from ${jsonPath}:`, error);
+		new Notice("❌ Failed to update Local RMS.");
 	}
 }
 
@@ -257,29 +362,34 @@ async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
 	// ✅ Helper function to load and extract JSON data
 	const loadJSONData = async (url: string) => {
 		try {
-			const noCacheUrl = `${url}?nocache=${Date.now()}`; // ✅ Appends unique timestamp to prevent caching
-			if (DEBUG_MODE) console.log(`Fetching metadata from: ${noCacheUrl}`);
+			const noCacheUrl = url.startsWith("http") ? `${url}?nocache=${Date.now()}` : url;
+			if (DEBUG_MODE) console.log(`📡 Fetching metadata from: ${noCacheUrl}`);
 
-			const response = await fetch(noCacheUrl, { method: 'GET', mode: 'cors' });
+			let data; // Declare data once
 
-			if (!response.ok) {
-				throw new Error(`Network response was not ok: ${response.status}`);
+			if (url.startsWith("http")) {
+				// ✅ Use fetch() for external sources
+				const response = await fetch(noCacheUrl); // Ensures no caching issues
+				if (!response.ok) {
+					throw new Error(`Network response was not ok: ${response.status}`);
+				}
+				data = await response.json(); // Assign value
+			} else {
+				// ✅ Use Obsidian's vault adapter for local files
+				const content = await app.vault.adapter.read(url);
+				data = JSON.parse(content); // Assign value
 			}
-
-			const data = await response.json(); // ✅ Ensures JSON is correctly loaded
 
 			if (DEBUG_MODE) console.log("🔍 RAW JSON Data:", data); // ✅ Debugging to check if JSON is correctly loaded
 
 			// ✅ Extract collection details safely
-			const collectionName = data.Collection?.name || "Unknown Collection";
-			const designator = data.Collection?.designator || "MISC"; // ✅ Extract the designator correctly
-			const collectionURL = data.Collection?.url || null;
-			if (DEBUG_MODE) console.log(`📡 Raw Collection URL from JSON:`, data.Collection?.url);
-			if (DEBUG_MODE) console.log(`✅ Checking Collection: ${collectionName}, Found Designator: ${designator}`);
-			if (DEBUG_MODE) {
-				console.log(`📡 Extracted Collection URL:`, collectionURL);
-			}
-			const categories = data.Collection?.Categories || [];
+			const collectionName = data?.Collection?.name || "Unknown Collection";
+			const designator = data?.Collection?.designator || "MISC";
+			const collectionURL = data?.Collection?.url || null;
+
+			if (DEBUG_MODE) console.log(`✅ Found Collection: "${collectionName}", Designator: "${designator}", URL: ${collectionURL}`);
+
+			const categories = data?.Collection?.Categories || [];
 			const items = categories.flatMap((category: any) =>
 				(category.items || []).map((item: any) => ({
 					...item,
@@ -289,11 +399,13 @@ async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
 				}))
 			);
 
-			if (DEBUG_MODE) console.log(`✅ Extracted ${items.length} items from "${collectionName}" with designator: "${designator}"`);
+			if (DEBUG_MODE) console.log(`✅ Extracted ${items.length} items from "${collectionName}"`);
+
+			// ✅ Store the result
 			mergedResults.push({
 				collectionName,
 				designator,
-				url: collectionURL,  // ✅ Ensure it's stored properly 
+				url: collectionURL, // ✅ Ensure it's stored properly 
 				items
 			});
 
@@ -302,7 +414,7 @@ async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
 		}
 	};
 
-	// ✅ Load all metadata URLs dynamically (including BiblicalStory if enabled)
+	// ✅ Load all metadata sources in parallel
 	await Promise.all(filePaths.map(loadJSONData));
 
 	if (DEBUG_MODE) console.log(`✅ Merged ${mergedResults.length} collections successfully.`);

@@ -129,15 +129,23 @@ class RISConvertedModal extends Modal {
 		const addButton = contentEl.createEl("button", { text: "Add as Metadata Source" });
 		addButton.style.marginRight = "10px";
 		addButton.addEventListener("click", async () => {
-			const pluginManager = (this.app as any).plugins; // ✅ Access plugin manager safely
-			const synapsePlugin = pluginManager.getPlugin("synapse"); // ✅ Get the Synapse plugin
-
+			const synapsePlugin = (this.app as any).plugins.getPlugin("synapse"); // ✅ Fix redline under "plugins"
 			if (!synapsePlugin) {
 				new Notice("❌ Synapse plugin not found. Cannot add metadata source.");
 				return;
 			}
+
 			await addLocalMetadataSource(this.app, this.filePath, synapsePlugin);
-			this.close();
+
+			// ✅ Refresh the settings UI directly if it's open
+			const settingsTab = synapsePlugin.app.setting?.activeTab;
+			if (settingsTab && settingsTab instanceof synapseSettingTab) {
+				settingsTab.display();
+			} else {
+				new Notice("✅ Metadata source added! Reopen settings to see changes.");
+			}
+
+			this.close(); // ✅ Close modal last
 		});
 
 		const closeButton = contentEl.createEl("button", { text: "Close" });
@@ -272,13 +280,26 @@ class synapseSettingTab extends PluginSettingTab {
 				});
 
 			// ✅ Fetch collection name asynchronously & update UI only ONCE
-			fetch(url).then(response => response.json()).then(data => {
-				const collectionName = data.Collection?.name || "Unknown Collection";
-				settingItem.setName(collectionName); // ✅ Update the name in place
-			}).catch(error => {
-				console.error(`Failed to fetch collection name for ${url}:`, error);
-				settingItem.setName("Error Loading Collection");
-			});
+			if (url.startsWith("http")) {
+				// ✅ Fetch external URLs normally
+				fetch(url).then(response => response.json()).then(data => {
+					const collectionName = data.Collection?.name || "Unknown Collection";
+					settingItem.setName(collectionName);
+				}).catch(error => {
+					console.error(`❌ Failed to fetch collection name for ${url}:`, error);
+					settingItem.setName("Error Loading Collection");
+				});
+			} else {
+				// ✅ Use Obsidian's vault adapter for local files
+				app.vault.adapter.read(url).then(content => {
+					const data = JSON.parse(content);
+					const collectionName = data.Collection?.name || "Unknown Collection";
+					settingItem.setName(collectionName);
+				}).catch(error => {
+					console.error(`❌ Failed to read local collection ${url}:`, error);
+					settingItem.setName("Error Loading Collection");
+				});
+			}
 		});
 
 		let newURL = "";
@@ -310,7 +331,7 @@ class synapseSettingTab extends PluginSettingTab {
 		// ✅ Drag-and-Drop RIS Import
 		new Setting(containerEl)
 			.setName("Import RIS File")
-			.setDesc("Drag and drop an RIS file here to convert it to localrms.json")
+			.setDesc("To add your local Research Management System (e.g., Zotero, Endnote), export your library as a RIS file, and drag and drop the RIS file here to convert it to a local synapse JSON (localrms.json) and add it as a metadata source.")
 			.then(setting => {
 				const dropzone = setting.controlEl.createEl("div", { cls: "ris-dropzone" });
 				dropzone.innerText = "Drop RIS File Here";

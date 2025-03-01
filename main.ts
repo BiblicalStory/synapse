@@ -305,8 +305,8 @@ class synapseSettingTab extends PluginSettingTab {
 		let newURL = "";
 		// ✅ Input for adding new metadata URL
 		new Setting(containerEl)
-			.setName("Add New Metadata URL")
-			.setDesc("Enter the URL of another metadata source.")
+			.setName("Add Remote Metadata Source")
+			.setDesc("Enter the URL of another synapse-format JSON metadata source.")
 			.addText(text =>
 				text.setPlaceholder("Enter URL...")
 					.onChange((value) => {
@@ -327,6 +327,43 @@ class synapseSettingTab extends PluginSettingTab {
 						}
 					})
 			);
+
+		// ✅ Section for adding local JSON metadata files
+		const metadataLIstContainer = containerEl.createDiv();
+
+		let localJSONPath = "";
+		new Setting(containerEl)
+			.setName("Add Local Metadata Source")
+			.setDesc("Choose a local synapse-format JSON file from your Obsidian vault.")
+			.addDropdown(dropdown => {
+				dropdown.selectEl.style.width = "50%";
+				// ✅ Get all JSON files in the vault
+				const jsonFiles = this.app.vault.getFiles().filter(file => file.path.endsWith(".json"));
+
+				// ✅ Populate dropdown options
+				jsonFiles.forEach(file => {
+					dropdown.addOption(file.path, file.path);
+				});
+
+				dropdown.onChange(async (selectedFile) => {
+					localJSONPath = selectedFile;
+					new Notice(`📂 Selected file: ${selectedFile}`);
+				});
+			})
+			.addButton(button =>
+				button.setButtonText("Add")
+					.setCta()
+					.onClick(async () => {
+						if (localJSONPath && !this.plugin.settings.metadataUrls.some(entry => entry.url === localJSONPath)) {
+							this.plugin.settings.metadataUrls.push({ url: localJSONPath, enabled: true });
+							await this.plugin.saveSettings();
+							this.display(); // ✅ Refresh UI
+						} else {
+							new Notice("⚠️ Metadata source already exists or is invalid.");
+						}
+					})
+			);
+
 
 		// ✅ Drag-and-Drop RIS Import
 		new Setting(containerEl)
@@ -933,6 +970,44 @@ function getRandomColor() {
 		"#B5835A", // Soft Camel
 		"#765D54", // Smoked Hickory
 		"#B26941", // Faded Brick
+		// 🌿 Earthy & Vintage Tones (1970s)
+		"#B35042", // Deep Rust Red
+		"#D98E04", // Bold Goldenrod
+		"#8C6A5D", // Earthy Brown Clay
+		"#C26E40", // Warm Burnt Orange
+		"#9C6644", // Burnt Mocha
+		"#5C6B73", // Stormy Blue Gray
+		"#B88B4A", // Old School Honey Gold
+		"#3E505B", // Steely Blue-Gray
+		"#5F6B77", // Smoked Steel
+		"#9F7F62", // Desert Sand
+		"#764248", // Muted Burgundy
+
+		// 🌞 Cheerful, Springy & Pastel Hues
+		"#FFD166", // Soft Sunshine Yellow
+		"#FF8C42", // Warm Peachy Orange
+		"#FFA69E", // Soft Coral
+		"#F4A261", // Desert Sunset Orange
+		"#FFB7C3", // Gentle Blush Pink
+		"#E9C46A", // Retro Mustard Yellow
+		"#B8E986", // Mint Green
+		"#7BDFF2", // Aqua Cyan
+		"#A29BFE", // Soft Lavender
+		"#C3B1E1", // Pastel Purple
+		"#99C1DE", // Sky Blue
+		"#70A288", // Sage Green
+
+		// ⚡ Gen Z & High-Energy Pops
+		"#FF006E", // Neon Fuchsia
+		"#8338EC", // Electric Purple
+		"#3A86FF", // Cyber Blue
+		"#06D6A0", // Vibrant Teal
+		"#F15BB5", // Hot Pink Magenta
+		"#9B5DE5", // Saturated Grape Purple
+		"#1BE7FF", // Bright Sky Cyan
+		"#72EFDD", // Neon Mint
+		"#FFBE0B", // Gen Z Golden Yellow
+		"#2EC4B6", // Vibrant Blue-Green
 
 	];
 	return palette[Math.floor(Math.random() * palette.length)];

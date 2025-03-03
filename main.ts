@@ -749,7 +749,8 @@ class JSONSearchModal {
 		searchQueryDisplay.style.fontSize = "12px";
 		searchQueryDisplay.style.fontFamily = "monospace";
 		searchQueryDisplay.style.textAlign = "right";
-
+		searchQueryDisplay.style.fontWeight = "regular";
+		searchQueryDisplay.style.textShadow = "0 0 2px rgba(255, 255, 255, 0.35), 0 0 4px rgba(255, 255, 255, 0.2)";
 		const booleanLabel = commandBar.createEl("span", { text: "BOOLEAN" });
 		booleanLabel.style.flexGrow = "1";
 		booleanLabel.style.textAlign = "center";
@@ -832,153 +833,7 @@ class JSONSearchModal {
 
 function getRandomColor() {
 	const palette = [
-		"#B35042", // Deep Rust Red
-		"#D98E04", // Bold Goldenrod
-		"#8C6A5D", // Earthy Brown Clay
-		"#204E5F", // Muted Teal Blue
-		"#735D78", // Rugged Smoky Purple
-		"#C26E40", // Warm Burnt Orange
-		"#6D597A", // Deep Dusky Grape
-		"#556B78", // Cool Industrial Blue
-		"#A37551", // Caramel Brown
-		"#343E48", // Graphite Slate
-		"#795548", // Retro Coffee Brown
-		"#8E5E34", // Weathered Copper
-		"#2F4858", // Dark Cyan Steel
-		"#5D737E", // Soft Vintage Denim
-		"#9C6644", // Dusty Mocha
-		"#4E2A1E", // Rich Leather Brown
-		"#1E3D59", // Tech Midnight Blue
-		"#554971", // Muted Royal Indigo
-		"#DAA520", // Vintage Mustard Gold
-		"#E07A5F", // Muted Terracotta
-		"#F4A261", // Soft Desert Orange
-		"#F4D35E", // Warm Golden Yellow
-		"#A1C181", // Dusty Sage Green
-		"#619B8A", // Vintage Teal
-		"#6D597A", // Dusky Purple
-		"#B5838D", // Muted Rosewood
-		"#8D5A97", // Faded Lavender
-		"#E9C46A", // Retro Mustard
-		"#9C6644", // Burnt Mocha
-		"#5C6B73", // Stormy Blue Gray
-		"#CB997E", // Clay Beige
-		"#B37084", // Warm Mauve
-		"#A07C40", // 70s Olive Brown
-		"#765D69", // Smoky Plum
-		"#3D5A80", // Faded Ocean Blue
-		"#A37551", // Caramel Brown
-		"#554971", // Deep Muted Indigo
-		"#DA627D", // Warm Pink Coral
-		"#848FA5", // Dusty Blue Gray
-		"#7A6C5D", // Earthy Walnut
-		"#C08497", // Vintage Blush
-		"#735D78", // Smoky Purple
-		"#AC7D88",  // Faded Mauve
-		"#B35042", // Deep Rust Red
-		"#D98E04", // Bold Goldenrod
-		"#8C6A5D", // Earthy Brown Clay
-		"#3A7D44", // Deep Vintage Green (if you want it back!)
-		"#204E5F", // Muted Teal Blue
-		"#735D78", // Rugged Smoky Purple
-		"#C26E40", // Warm Burnt Orange
-		"#6D597A", // Deep Dusky Grape
-		"#556B78", // Cool Industrial Blue
-		"#A37551", // Caramel Brown
-		"#343E48", // Graphite Slate
-		"#795548", // Retro Coffee Brown
-		"#8E5E34", // Weathered Copper
-		"#2F4858", // Dark Cyan Steel
-		"#5D737E", // Soft Vintage Denim
-		"#9C6644", // Dusty Mocha
-		"#4E2A1E", // Rich Leather Brown
-		"#1E3D59", // Tech Midnight Blue
-		"#554971", // Muted Royal Indigo
-		"#DAA520", // Vintage Mustard Gold
-		"#3C4151", // Charcoal Blue-Gray
-		"#AB5E3F", // Deep Auburn
-		"#8B5A2B", // Classic Saddle Brown
-		"#52796F", // Retro Moss Green
-		"#855988", // Soft Grape-Toned Purple
-		"#A06C56", // Rustic Terracotta
-		"#3E505B", // Steely Blue-Gray
-		"#BF7154", // 70s Warm Tan
-		"#5F6B77", // Smoked Steel
-		"#764248", // Muted Burgundy
-		"#9F7F62", // Desert Sand
-		"#465362", // Navy Slate
-		"#876445", // Deep Bronze
-		"#AD8A64", // Aged Copper
-		"#3F2E3E", // Espresso Shadow
-		"#9D6B53", // Toasted Caramel
-		"#5B6C5D", // Military Olive
-		"#A57C65", // Faded Leather
-		"#4A4843", // Aged Pewter
-		"#B88B4A", // Old School Honey Gold
-		"#B35042", // Deep Rust Red
-		"#D98E04", // Bold Goldenrod
-		"#8C6A5D", // Earthy Brown Clay
-		"#3A7D44", // Deep Vintage Green
-		"#204E5F", // Muted Teal Blue
-		"#735D78", // Rugged Smoky Purple
-		"#C26E40", // Warm Burnt Orange
-		"#6D597A", // Deep Dusky Grape
-		"#556B78", // Cool Industrial Blue
-		"#A37551", // Caramel Brown
-		"#343E48", // Graphite Slate
-		"#795548", // Retro Coffee Brown
-		"#8E5E34", // Weathered Copper
-		"#2F4858", // Dark Cyan Steel
-		"#5D737E", // Soft Vintage Denim
-		"#9C6644", // Dusty Mocha
-		"#4E2A1E", // Rich Leather Brown
-		"#1E3D59", // Tech Midnight Blue
-		"#554971", // Muted Royal Indigo
-		"#DAA520", // Vintage Mustard Gold
-		"#3C4151", // Charcoal Blue-Gray
-		"#AB5E3F", // Deep Auburn
-		"#8B5A2B", // Classic Saddle Brown
-		"#52796F", // Retro Moss Green
-		"#855988", // Soft Grape-Toned Purple
-		"#A06C56", // Rustic Terracotta
-		"#3E505B", // Steely Blue-Gray
-		"#BF7154", // 70s Warm Tan
-		"#5F6B77", // Smoked Steel
-		"#764248", // Muted Burgundy
-		"#9F7F62", // Desert Sand
-		"#465362", // Navy Slate
-		"#876445", // Deep Bronze
-		"#AD8A64", // Aged Copper
-		"#3F2E3E", // Espresso Shadow
-		"#9D6B53", // Toasted Caramel
-		"#5B6C5D", // Military Olive
-		"#A57C65", // Faded Leather
-		"#4A4843", // Aged Pewter
-		"#B88B4A", // Old School Honey Gold
-		"#3B4252", // Nordic Slate
-		"#735B57", // Cocoa Ash
-		"#8C705F", // Burnt Chestnut
-		"#6E7C7C", // Concrete Gray
-		"#D4A373", // Warm Clay Beige
-		"#4C516D", // Stormy Navy
-		"#996C4D", // Timberwood Brown
-		"#8E675E", // Dusty Redwood
-		"#D08C60", // Polished Bronze
-		"#A98467", // Weathered Tan
-		"#584E4A", // Forged Iron
-		"#714B50", // Vintage Rosewood
-		"#9A5330", // Deep Clay Red
-		"#374A67", // Faded Navy Blue
-		"#6B4226", // Distressed Walnut
-		"#816C5B", // Aged Oak
-		"#4F5D75", // Slate Dust
-		"#94674B", // Rustic Amber
-		"#3D2F2F", // Charred Wood
-		"#6E5B4D", // Aged Tobacco
-		"#B5835A", // Soft Camel
-		"#765D54", // Smoked Hickory
-		"#B26941", // Faded Brick
-		// 🌿 Earthy & Vintage Tones (1970s)
+		// 🌿 1970s Earthy & Vintage Tones
 		"#B35042", // Deep Rust Red
 		"#D98E04", // Bold Goldenrod
 		"#8C6A5D", // Earthy Brown Clay
@@ -990,22 +845,15 @@ function getRandomColor() {
 		"#5F6B77", // Smoked Steel
 		"#9F7F62", // Desert Sand
 		"#764248", // Muted Burgundy
+		"#6D597A", // Deep Dusky Grape
+		"#204E5F", // Muted Teal Blue
+		"#8E5E34", // Weathered Copper
+		"#A37551", // Caramel Brown
+		"#554971", // Muted Royal Indigo
+		"#E07A5F", // Soft Terracotta
+		"#DAA520", // Vintage Mustard Gold,
 
-		// 🌞 Cheerful, Springy & Pastel Hues
-		"#FFD166", // Soft Sunshine Yellow
-		"#FF8C42", // Warm Peachy Orange
-		"#FFA69E", // Soft Coral
-		"#F4A261", // Desert Sunset Orange
-		"#FFB7C3", // Gentle Blush Pink
-		"#E9C46A", // Retro Mustard Yellow
-		"#B8E986", // Mint Green
-		"#7BDFF2", // Aqua Cyan
-		"#A29BFE", // Soft Lavender
-		"#C3B1E1", // Pastel Purple
-		"#99C1DE", // Sky Blue
-		"#70A288", // Sage Green
-
-		// ⚡ Gen Z & High-Energy Pops
+		// ⚡ Gen Z Electric Pops
 		"#FF006E", // Neon Fuchsia
 		"#8338EC", // Electric Purple
 		"#3A86FF", // Cyber Blue
@@ -1017,28 +865,26 @@ function getRandomColor() {
 		"#FFBE0B", // Gen Z Golden Yellow
 		"#2EC4B6", // Vibrant Blue-Green
 
-		//apparently Miami Vice Vaporwave
-		"#FF4E50", // 🌅 Hot Neon Sunset Red
-		"#FC913A", // 🍊 Tangerine Glow
-		"#F9D423", // 🌞 Electric Golden Yellow
-		"#E3170A", // 🚗 Ferrari Red
-		"#FF6B6B", // ❤️ Vivid Coral Pink
-		"#FEA47F", // 🍑 Peachy Pink
-		"#C86B85", // 💋 Retro Magenta
-		"#F15BB5", // 🎶 Synthwave Pink
-		"#B7094C", // 🌇 Deep Miami Red
-		"#8338EC", // 💜 Ultra Violet Purple
-		"#5A189A", // 🎆 Vaporwave Dark Purple
-		"#6A0572", // 💾 CRT Monitor Purple
-		"#480CA8", // 🌌 Deep Midnight Indigo
-		"#3A86FF", // 🌊 Cyber Blue
-		"#1BE7FF", // 💎 Bright Sky Cyan
-		"#2EC4B6", // 🏝️ Vibrant Teal Green
-		"#72EFDD", // 🍃 Neon Mint Green
-		"#3A506B", // 🌃 Deep Synthwave Blue
-		"#0A1128", // 🌠 Outer Space Navy
-		"#041F60", // 🚀 Galactic Blue
-
+		// 🌅 Miami Vice Vaporwave
+		"#FF4E50", // Hot Neon Sunset Red
+		"#FC913A", // Tangerine Glow
+		"#F9D423", // Electric Golden Yellow
+		"#E3170A", // Ferrari Red
+		"#FEA47F", // Peachy Pink
+		"#C86B85", // Retro Magenta
+		"#F15BB5", // Synthwave Pink
+		"#B7094C", // Deep Miami Red
+		"#8338EC", // Ultra Violet Purple
+		"#5A189A", // Vaporwave Dark Purple
+		"#6A0572", // CRT Monitor Purple
+		"#480CA8", // Deep Midnight Indigo
+		"#3A86FF", // Cyber Blue
+		"#1BE7FF", // Bright Sky Cyan
+		"#2EC4B6", // Vibrant Teal Green
+		"#72EFDD", // Neon Mint Green
+		"#3A506B", // Deep Synthwave Blue
+		"#0A1128", // Outer Space Navy
+		"#041F60"  // Galactic Blue
 	];
 	return palette[Math.floor(Math.random() * palette.length)];
 }

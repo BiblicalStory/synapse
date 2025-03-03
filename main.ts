@@ -475,6 +475,10 @@ async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
 	// ✅ Load all metadata sources in parallel
 	await Promise.all(filePaths.map(loadJSONData));
 
+	mergedResults.sort((a, b) => {
+		return a.collectionName === "BiblicalStory" ? -1 : b.collectionName === "BiblicalStory" ? 1 : 0;
+	})
+
 	if (DEBUG_MODE) console.log(`✅ Merged ${mergedResults.length} collections successfully.`);
 	return mergedResults;
 }
@@ -1008,6 +1012,28 @@ function getRandomColor() {
 		"#72EFDD", // Neon Mint
 		"#FFBE0B", // Gen Z Golden Yellow
 		"#2EC4B6", // Vibrant Blue-Green
+
+		//apparently Miami Vice Vaporwave
+		"#FF4E50", // 🌅 Hot Neon Sunset Red
+		"#FC913A", // 🍊 Tangerine Glow
+		"#F9D423", // 🌞 Electric Golden Yellow
+		"#E3170A", // 🚗 Ferrari Red
+		"#FF6B6B", // ❤️ Vivid Coral Pink
+		"#FEA47F", // 🍑 Peachy Pink
+		"#C86B85", // 💋 Retro Magenta
+		"#F15BB5", // 🎶 Synthwave Pink
+		"#B7094C", // 🌇 Deep Miami Red
+		"#8338EC", // 💜 Ultra Violet Purple
+		"#5A189A", // 🎆 Vaporwave Dark Purple
+		"#6A0572", // 💾 CRT Monitor Purple
+		"#480CA8", // 🌌 Deep Midnight Indigo
+		"#3A86FF", // 🌊 Cyber Blue
+		"#1BE7FF", // 💎 Bright Sky Cyan
+		"#2EC4B6", // 🏝️ Vibrant Teal Green
+		"#72EFDD", // 🍃 Neon Mint Green
+		"#3A506B", // 🌃 Deep Synthwave Blue
+		"#0A1128", // 🌠 Outer Space Navy
+		"#041F60", // 🚀 Galactic Blue
 
 	];
 	return palette[Math.floor(Math.random() * palette.length)];

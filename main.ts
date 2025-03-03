@@ -501,10 +501,14 @@ async function createNoteInHierarchy(
 	content: string,
 	collectionName: string,
 	designator: string,
-	categoryName: string
+	categoryName: string,
+	author?: string //Accept author as optional parameter
 ): Promise<string> {  // ✅ Now returns the file path
+	const safeTitle = title.replace(/[^a-zA-z0-9\-\–\—\_\.\']/g, " ");
+	const safeAuthor = author ? author.replace(/[^a-zA-Z0-9\-\–\—\_\.\']/g, " ") : "Unknown"; // ✅ Ensure safe author names
+
 	const folderPath = `(s) ${designator}_${collectionName}/${categoryName}`;
-	const fileName = `${folderPath}/${title.replace(/[^a-zA-Z0-9\-\–\—\_\']/g, " ")}.md`;
+	const fileName = `${folderPath}/${safeAuthor} — ${safeTitle}.md`; // ✅ Include Author in File Name
 
 	await ensureFolderExists(app, folderPath);
 
@@ -1152,14 +1156,15 @@ export default class synapse extends Plugin {
 							}
 							if (DEBUG_MODE) console.log(result.collectionName)
 							const content = `COLLECTION: ${result.collectionName}\nTITLE: "${result.title}"\nAUTHOR: ${result.author}\nPUBLISHER: ${result.publisher}\nDATE: ${result.date}\nURL: ${result.url}\nRIS: ${result.ris}\nDESCRIPTION: ${result.description || ""}\n\n-----------------------------------\nWRITE BELOW ->\n\n`;
-
+							const author = result.author || "Unknown Author";
 							const filePath = await createNoteInHierarchy(
 								this.app,
 								result.title,
 								content,
 								result.collectionName,
 								result.designator,
-								result.categoryName
+								result.categoryName,
+								author
 							);
 
 							// Remove "@@" after selection

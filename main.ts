@@ -1,6 +1,6 @@
 import { App, Modal, MarkdownView, Plugin, Notice, Editor, PluginSettingTab, Setting } from 'obsidian';
 import { performFuzzySearch } from "./searchEngine";
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 // Plugin Settings Interface
 interface synapseSettings {
@@ -16,25 +16,25 @@ const DEFAULT_SETTINGS: synapseSettings = {
 function parseRIS(risContent: string): any[] {
 	const entries: any[] = [];
 	const lines = risContent.split(/\r?\n/);
-	console.log("📃 Parsed Lines:", lines);
+	if (DEBUG_MODE) console.log("📃 Parsed Lines:", lines);
 	let currentEntry: Record<string, string> = {};
-	console.log("RAW RIS CONTENT:", risContent);
+	if (DEBUG_MODE) console.log("RAW RIS CONTENT:", risContent);
 	for (const line of lines) {
-		console.log("looping over line:", line);
-		console.log("🔍 Checking line:", JSON.stringify(line));
+		if (DEBUG_MODE) console.log("looping over line:", line);
+		if (DEBUG_MODE) console.log("🔍 Checking line:", JSON.stringify(line));
 		const match = line.match(/^([A-Z0-9]{2})  - (.*)$/);
-		console.log("📄 RIS lines detected:", lines.length);
-		console.log("Checking line:", line);
+		if (DEBUG_MODE) console.log("📄 RIS lines detected:", lines.length);
+		if (DEBUG_MODE) console.log("Checking line:", line);
 		if (match) {
 			const [, key, value] = match;
-			console.log("parseRIS function is running!");
+			if (DEBUG_MODE) console.log("parseRIS function is running!");
 			if (key === "TY") {
 				if (Object.keys(currentEntry).length > 0) {
-					console.log("here's the current entry SB:", currentEntry);
+					if (DEBUG_MODE) console.log("here's the current entry SB:", currentEntry);
 					entries.push(transformRIS(currentEntry));
 				}
 				currentEntry = {};
-				console.log("Found new TY entry, resetting:", currentEntry);
+				if (DEBUG_MODE) console.log("Found new TY entry, resetting:", currentEntry);
 			}
 
 			currentEntry[key] = value;
@@ -45,7 +45,7 @@ function parseRIS(risContent: string): any[] {
 		entries.push(transformRIS(currentEntry));
 	}
 
-	console.log("🧐 Parsed RIS Entries:", entries); // Debug output
+	if (DEBUG_MODE) console.log("🧐 Parsed RIS Entries:", entries); // Debug output
 	return entries;
 }
 
@@ -63,16 +63,16 @@ function transformRIS(entry: Record<string, string>) {
 
 async function processDroppedRIS(app: App, risContent: string) {
 	try {
-		console.log("📄 Processing RIS content...");
+		if (DEBUG_MODE) console.log("📄 Processing RIS content...");
 		const entries = parseRIS(risContent);
 
 		if (entries.length === 0) {
-			console.error("❌ No entries were extracted from the RIS file!");
+			if (DEBUG_MODE) console.error("❌ No entries were extracted from the RIS file!");
 			new Notice("❌ Failed to extract entries from the RIS file.");
 			return;
 		}
 
-		console.log("✅ Successfully extracted RIS entries:", entries);
+		if (DEBUG_MODE) console.log("✅ Successfully extracted RIS entries:", entries);
 
 		// ✅ Create JSON structure
 		const collectionJSON = {
@@ -89,23 +89,23 @@ async function processDroppedRIS(app: App, risContent: string) {
 			}
 		};
 
-		console.log("🔍 JSON Structure to be Saved:", JSON.stringify(collectionJSON, null, 2));
+		if (DEBUG_MODE) console.log("🔍 JSON Structure to be Saved:", JSON.stringify(collectionJSON, null, 2));
 
 		// ✅ Save as localrms.json in vault root
 		const jsonPath = "localrms.json";
 		await app.vault.adapter.write(jsonPath, JSON.stringify(collectionJSON, null, 2));
-		console.log(`✅ Converted RIS to JSON: ${jsonPath}`);
+		if (DEBUG_MODE) console.log(`✅ Converted RIS to JSON: ${jsonPath}`);
 
 		// ✅ Double-check if file actually exists after saving
 		const verifyContent = await app.vault.adapter.read(jsonPath);
-		console.log("🔄 Verified Saved JSON:", verifyContent);
+		if (DEBUG_MODE) console.log("🔄 Verified Saved JSON:", verifyContent);
 
 		// ✅ Refresh Synapse search modal to load new data
 		await updateLocalRMS(app, jsonPath);
 
 		new RISConvertedModal(app, jsonPath).open();
 	} catch (error) {
-		console.error("❌ Error processing RIS file:", error);
+		if (DEBUG_MODE) console.error("❌ Error processing RIS file:", error);
 		new Notice("❌ Failed to process the RIS file.");
 	}
 }
@@ -162,22 +162,22 @@ class RISConvertedModal extends Modal {
 
 async function addLocalMetadataSource(app: App, filePath: string, plugin: any) {
 	if (!plugin) {
-		console.error("❌ Synapse plugin not found!");
+		if (DEBUG_MODE) console.error("❌ Synapse plugin not found!");
 		new Notice("❌ Synapse plugin not found. Cannot add metadata source.");
 		return;
 	}
 
 	const metadataEntry = { url: filePath, enabled: true };
 
-	console.log("🛠 Checking existing metadata sources...");
+	if (DEBUG_MODE) console.log("🛠 Checking existing metadata sources...");
 
 	if (!plugin.settings.metadataUrls.some((entry: { url: string; enabled: boolean }) => entry.url === metadataEntry.url)) {
-		console.log("✅ Adding new metadata source:", metadataEntry.url);
+		if (DEBUG_MODE) console.log("✅ Adding new metadata source:", metadataEntry.url);
 		plugin.settings.metadataUrls.push(metadataEntry);
 		await plugin.saveSettings();
 		new Notice(`✅ Added "${filePath}" as a metadata source!`);
 	} else {
-		console.warn("⚠️ Metadata source already exists:", metadataEntry.url);
+		if (DEBUG_MODE) console.warn("⚠️ Metadata source already exists:", metadataEntry.url);
 		new Notice(`⚠️ Metadata source already exists: ${filePath}`);
 	}
 }
@@ -185,22 +185,22 @@ async function addLocalMetadataSource(app: App, filePath: string, plugin: any) {
 async function updateLocalRMS(app: App, jsonPath: string) {
 	try {
 		if (!jsonPath) {
-			console.error("❌ JSON path is undefined!");
+			if (DEBUG_MODE) console.error("❌ JSON path is undefined!");
 			return;
 		}
 
-		console.log("📂 Attempting to load JSON:", jsonPath);
+		if (DEBUG_MODE) console.log("📂 Attempting to load JSON:", jsonPath);
 		const content = await app.vault.adapter.read(jsonPath);
-		console.log("📂 Loaded JSON Content:", content);
+		if (DEBUG_MODE) console.log("📂 Loaded JSON Content:", content);
 
 		const localRMSData = JSON.parse(content);
 
 		// ✅ Merge new data into Synapse metadata
 		await loadAndMergeJSONs([jsonPath]);
 
-		console.log(`🔄 Synapse metadata updated from ${jsonPath}`);
+		if (DEBUG_MODE) console.log(`🔄 Synapse metadata updated from ${jsonPath}`);
 	} catch (error) {
-		console.error(`❌ Failed to update Local RMS from ${jsonPath}:`, error);
+		if (DEBUG_MODE) console.error(`❌ Failed to update Local RMS from ${jsonPath}:`, error);
 		new Notice("❌ Failed to update Local RMS.");
 	}
 }
@@ -398,7 +398,7 @@ class synapseSettingTab extends PluginSettingTab {
 						const file = files[0];
 
 						if (file.name.endsWith(".ris")) {
-							console.log(`📥 Received RIS file: ${file.name}`);
+							if (DEBUG_MODE) console(`📥 Received RIS file: ${file.name}`);
 							const arrayBuffer = await file.arrayBuffer();
 							const textContent = new TextDecoder("utf-8").decode(arrayBuffer);
 
@@ -598,8 +598,8 @@ class JSONSearchModal {
 
 			// ✅ Pull homepage from "Collection.url", NOT from item URLs
 			// ✅ Extract homepage URL from "Collection.url", NOT the JSON source URL
-			console.log("🧐 Full Collection Object:", collection);
-			console.log("🔍 Extracted Collection URL:", collection.url);
+			if (DEBUG_MODE) console.log("🧐 Full Collection Object:", collection);
+			if (DEBUG_MODE) console.log("🔍 Extracted Collection URL:", collection.url);
 
 			let collectionURL = collection?.url || "#";
 
@@ -618,14 +618,14 @@ class JSONSearchModal {
 				collectionURL = collectionURL;
 			}
 
-			console.log(`🌍 Final Collection URL: ${collectionURL}`);
+			if (DEBUG_MODE) console.log(`🌍 Final Collection URL: ${collectionURL}`);
 
 			// 🖱️ Right-click behavior
 			categoryHeader.addEventListener("contextmenu", (event) => {
 				event.preventDefault();
-				console.log(`🖱️ Right-click detected. Opening: ${collectionURL}`);
-				console.log("Full collection object:", collection);
-				console.log("Extracted collection URL:", collection.url);
+				if (DEBUG_MODE) console.log(`🖱️ Right-click detected. Opening: ${collectionURL}`);
+				if (DEBUG_MODE) console.log("Full collection object:", collection);
+				if (DEBUG_MODE) console.log("Extracted collection URL:", collection.url);
 
 				if (collectionURL !== "#") {
 					window.open(collectionURL, "_blank");
@@ -638,7 +638,7 @@ class JSONSearchModal {
 			let touchTimer: any;
 			categoryHeader.addEventListener("touchstart", () => {
 				touchTimer = setTimeout(() => {
-					console.log(`📱 Long press detected. Opening: ${collectionURL}`);
+					if (DEBUG_MODE) console.log(`📱 Long press detected. Opening: ${collectionURL}`);
 					if (collectionURL !== "#") {
 						window.open(collectionURL, "_blank");
 					}

@@ -1,5 +1,5 @@
 import Fuse from "fuse.js";
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 export interface SearchableItem {
     title?: string;

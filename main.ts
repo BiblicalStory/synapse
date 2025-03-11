@@ -291,11 +291,11 @@ class synapseSettingTab extends PluginSettingTab {
 				});
 			} else {
 				// ✅ Use Obsidian's vault adapter for local files
-				app.vault.adapter.read(url).then(content => {
+				this.app.vault.adapter.read(url).then((content: string) => {
 					const data = JSON.parse(content);
 					const collectionName = data.Collection?.name || "Unknown Collection";
 					settingItem.setName(collectionName);
-				}).catch(error => {
+				}).catch((error: any) => {
 					console.error(`❌ Failed to read local collection ${url}:`, error);
 					settingItem.setName("Error Loading Collection");
 				});
@@ -398,7 +398,7 @@ class synapseSettingTab extends PluginSettingTab {
 						const file = files[0];
 
 						if (file.name.endsWith(".ris")) {
-							if (DEBUG_MODE) console(`📥 Received RIS file: ${file.name}`);
+							if (DEBUG_MODE) console.log(`📥 Received RIS file: ${file.name}`);
 							const arrayBuffer = await file.arrayBuffer();
 							const textContent = new TextDecoder("utf-8").decode(arrayBuffer);
 
@@ -434,7 +434,7 @@ async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
 				data = await response.json(); // Assign value
 			} else {
 				// ✅ Use Obsidian's vault adapter for local files
-				const content = await app.vault.adapter.read(url);
+				const content = await this.app.vault.adapter.read(url);
 				data = JSON.parse(content); // Assign value
 			}
 

@@ -833,8 +833,6 @@ class JSONSearchModal {
 
 function getRandomColor() {
 	const palette = [
-		// 🌿 1970s Earthy & Vintage Tones
-		// 🌿 1970s Earthy & Vintage Tones (Expanded Set)
 		"#B35042", // Deep Rust Red
 		"#D98E04", // Bold Goldenrod
 		"#8C6A5D", // Earthy Brown Clay
@@ -873,10 +871,9 @@ function getRandomColor() {
 		"#AD8A64", // Aged Copper
 		"#9D6B53", // Toasted Caramel
 		"#705438", // Vintage Umber
-		"#B37084", // Warm Mauve
 
-		// ⚡ Millennial Bold Yet Soft Colors
-		"#FFA69E", // Soft Coral
+		// 🎨 **Expanded Millennial Color Palette** (Soft + Vibrant Balance)
+		"#FFA69E", // Soft Coral (Kept since it’s more peach than pink)
 		"#FFD166", // Warm Sunshine Yellow
 		"#FF8C42", // Peachy Orange
 		"#F4A261", // Desert Sunset Orange
@@ -896,57 +893,51 @@ function getRandomColor() {
 		"#F1C40F", // Golden Glow
 		"#D9B08C", // Faded Almond
 		"#E08D79", // Sunset Peach
-		"#FF9F68", // Retro Salmon
 		"#BAA89C", // Neutral Warm Gray
 		"#ADB5BD", // Cool Desaturated Gray
 		"#B5838D", // Muted Rosewood
-		"#C08497", // Vintage Blush
+		"#C08497", // Vintage Blush (Kept since it’s more dusty mauve than Barbie pink)
 		"#7A6C5D", // Earthy Walnut
 		"#52796F", // Retro Moss Green
 		"#5D737E", // Soft Vintage Denim
 		"#A07C40", // 70s Olive Brown
 		"#3D5A80", // Faded Ocean Blue
+		"#728FCE", // Soft Periwinkle
+		"#AFD275", // Muted Spring Green
+		"#7E8F8A", // Slate Teal
+		"#D4A373", // Muted Golden Beige
 
-		// ⚡ Gen Z Electric Pops (Expanded)
-		"#FF006E", // Neon Fuchsia
+		// ⚡ **Refined Gen Z High-Energy Colors** (Neons Balanced)
 		"#8338EC", // Electric Purple
 		"#3A86FF", // Cyber Blue
 		"#06D6A0", // Vibrant Teal
-		"#F15BB5", // Hot Pink Magenta
 		"#9B5DE5", // Saturated Grape Purple
 		"#1BE7FF", // Bright Sky Cyan
 		"#72EFDD", // Neon Mint
 		"#FFBE0B", // Gen Z Golden Yellow
 		"#2EC4B6", // Vibrant Blue-Green
 		"#5A189A", // Deep Royal Violet
-		"#C31162", // Gen Z Magenta
-		"#FF385C", // Intense Sunset Red
 		"#007AFF", // Apple Blue
 		"#00F5D4", // Electric Aqua Green
 		"#FFB400", // Highlighter Yellow
-		"#BC477B", // Playful Raspberry
-		"#CF23CF", // Techno Purple
 		"#6F2DBD", // Bold Plum Purple
+		"#3D348B", // Rich Ultramarine
 
-		// 🌅 Miami Vice Vaporwave (Kept Small)
+		// 🌅 **Miami Vice Vaporwave (Kept Small & Toned Down)**
 		"#FF4E50", // Hot Neon Sunset Red
 		"#FC913A", // Tangerine Glow
 		"#F9D423", // Electric Golden Yellow
 		"#E3170A", // Ferrari Red
-		"#FEA47F", // Peachy Pink
-		"#C86B85", // Retro Magenta
-		"#B7094C", // Deep Miami Red
 		"#8338EC", // Ultra Violet Purple
 		"#5A189A", // Vaporwave Dark Purple
-		"#6A0572", // CRT Monitor Purple
 		"#480CA8", // Deep Midnight Indigo
 		"#3A86FF", // Cyber Blue
 		"#1BE7FF", // Bright Sky Cyan
 		"#2EC4B6", // Vibrant Teal Green
-		"#72EFDD", // Neon Mint Green
 		"#3A506B", // Deep Synthwave Blue
 		"#0A1128", // Outer Space Navy
-		"#041F60"  // Galactic Blue
+		"#041F60",  // Galactic Blue
+		"#5D2E8C", // Deep Amethyst Purple
 	];
 	return palette[Math.floor(Math.random() * palette.length)];
 }

@@ -217,7 +217,7 @@ class synapseSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl("h1", { text: "synapse" });
+		containerEl.createEl("h1", { text: "synapscide" });
 
 		/*// ✅ Close search modal if settings are opened
 		if (this.plugin.searchModal) {
@@ -565,7 +565,7 @@ class JSONSearchModal {
 
 		const mainTitle = titleContainer.createEl("h2", { text: "synapse" });
 		mainTitle.style.fontWeight = "bold";
-		mainTitle.style.marginBottom = "3px";
+		mainTitle.style.marginBottom = "4px";
 
 		this.popover.appendChild(titleContainer);
 
@@ -833,111 +833,77 @@ class JSONSearchModal {
 
 function getRandomColor() {
 	const palette = [
+		// 🔥 Warm Earth & Autumn Ember
 		"#B35042", // Deep Rust Red
-		"#D98E04", // Bold Goldenrod
-		"#8C6A5D", // Earthy Brown Clay
 		"#C26E40", // Warm Burnt Orange
 		"#9C6644", // Burnt Mocha
+		"#8E5E34", // Weathered Copper
+		"#C08457", // Rustic Amber
+		"#AB5E3F", // Deep Auburn
+		"#AD8A64", // Aged Copper
+		"#9A5330", // Deep Clay Red
+		"#D98E04", // Goldenrod Flame
+		"#E07A5F", // Soft Terracotta
+
+		// 🌊 Cool Neutrals & Ocean Tones
 		"#5C6B73", // Stormy Blue Gray
-		"#B88B4A", // Old School Honey Gold
 		"#3E505B", // Steely Blue-Gray
 		"#5F6B77", // Smoked Steel
-		"#9F7F62", // Desert Sand
-		"#764248", // Muted Burgundy
-		"#6D597A", // Deep Dusky Grape
 		"#204E5F", // Muted Teal Blue
-		"#8E5E34", // Weathered Copper
-		"#A37551", // Caramel Brown
-		"#554971", // Muted Royal Indigo
-		"#E07A5F", // Soft Terracotta
-		"#DAA520", // Vintage Mustard Gold
-		"#4E2A1E", // Rich Leather Brown
-		"#6E5B4D", // Aged Tobacco
-		"#9C795D", // Faded Cinnamon
-		"#876445", // Deep Bronze
-		"#C08457", // Rustic Amber
-		"#A06C56", // Burnt Tan
-		"#AB5E3F", // Deep Auburn
-		"#6B4226", // Distressed Walnut
-		"#816C5B", // Aged Oak
-		"#A57C65", // Faded Leather
-		"#5B6C5D", // Military Olive
-		"#8E6F52", // Weathered Chestnut
-		"#C08C60", // Deep Caramel
-		"#A37551", // Sandalwood
-		"#9A5330", // Deep Clay Red
-		"#6A5145", // Rugged Bark Brown
-		"#5C473A", // Dark Sepia
-		"#AD8A64", // Aged Copper
-		"#9D6B53", // Toasted Caramel
-		"#705438", // Vintage Umber
-
-		// 🎨 **Expanded Millennial Color Palette** (Soft + Vibrant Balance)
-		"#FFA69E", // Soft Coral (Kept since it’s more peach than pink)
-		"#FFD166", // Warm Sunshine Yellow
-		"#FF8C42", // Peachy Orange
-		"#F4A261", // Desert Sunset Orange
-		"#E9C46A", // Retro Mustard Yellow
-		"#B8E986", // Mint Green
-		"#7BDFF2", // Aqua Cyan
-		"#A29BFE", // Soft Lavender
-		"#C3B1E1", // Pastel Purple
-		"#99C1DE", // Sky Blue
-		"#70A288", // Sage Green
-		"#F4D35E", // Muted Honey Yellow
-		"#C9ADA7", // Warm Blush Beige
-		"#A4C3B2", // Soft Fern Green
-		"#EFC3A4", // Vintage Apricot
-		"#89CFF0", // Baby Blue
-		"#C5A880", // Faded Sandstone
-		"#F1C40F", // Golden Glow
-		"#D9B08C", // Faded Almond
-		"#E08D79", // Sunset Peach
-		"#BAA89C", // Neutral Warm Gray
-		"#ADB5BD", // Cool Desaturated Gray
-		"#B5838D", // Muted Rosewood
-		"#C08497", // Vintage Blush (Kept since it’s more dusty mauve than Barbie pink)
-		"#7A6C5D", // Earthy Walnut
-		"#52796F", // Retro Moss Green
-		"#5D737E", // Soft Vintage Denim
-		"#A07C40", // 70s Olive Brown
-		"#3D5A80", // Faded Ocean Blue
-		"#728FCE", // Soft Periwinkle
-		"#AFD275", // Muted Spring Green
+		"#554971", // Royal Indigo
+		"#3D5A80", // Ocean Steel
+		"#5D737E", // Soft Slate Blue
 		"#7E8F8A", // Slate Teal
-		"#D4A373", // Muted Golden Beige
+		"#728FCE", // Cloudy Periwinkle
+		"#041F60", // Galactic Navy
 
-		// ⚡ **Refined Gen Z High-Energy Colors** (Neons Balanced)
+		// 🌿 Fresh Naturals & Earth Greens
+		"#70A288", // Sage Green
+		"#A4C3B2", // Fern Mist
+		"#5B6C5D", // Military Olive
+		"#52796F", // Retro Moss
+		"#A07C40", // Olive Brown
+		"#C5A880", // Faded Sandstone
+		"#D4A373", // Golden Beige
+		"#8E6F52", // Weathered Chestnut
+		"#6A5145", // Rugged Bark
+		"#876445", // Deep Bronze
+
+		// 🌸 Blush & Rosewood (No Pinks Too Bright)
+		"#C08497", // Vintage Blush
+		"#B5838D", // Muted Rosewood
+		"#C9ADA7", // Warm Blush Beige
+		"#BAA89C", // Neutral Almond
+		"#A37551", // Soft Caramel
+		"#9F7F62", // Dusty Sand
+		"#705438", // Umber Shadow
+		"#6D597A", // Dusky Grape
+		"#7A6C5D", // Weathered Walnut
+		"#6B4226", // Distressed Brown
+
+		// 💫 Deep Sky, Indigo, and Muted Purples
+		"#A29BFE", // Soft Lavender
+		"#C3B1E1", // Muted Pastel Purple
+		"#5D2E8C", // Deep Amethyst
+		"#6F2DBD", // Bold Plum
+		"#480CA8", // Indigo Pulse
+		"#3A506B", // Synthwave Steel
+		"#0A1128", // Deep Navy Black
+		"#3D348B", // Ultramarine Indigo
+		"#5A189A", // Royal Violet
 		"#8338EC", // Electric Purple
+
+		// ⚡ Accent Pops (Bold, Not Washed)
 		"#3A86FF", // Cyber Blue
 		"#06D6A0", // Vibrant Teal
-		"#9B5DE5", // Saturated Grape Purple
-		"#1BE7FF", // Bright Sky Cyan
-		"#72EFDD", // Neon Mint
-		"#FFBE0B", // Gen Z Golden Yellow
-		"#2EC4B6", // Vibrant Blue-Green
-		"#5A189A", // Deep Royal Violet
-		"#007AFF", // Apple Blue
-		"#00F5D4", // Electric Aqua Green
-		"#FFB400", // Highlighter Yellow
-		"#6F2DBD", // Bold Plum Purple
-		"#3D348B", // Rich Ultramarine
-
-		// 🌅 **Miami Vice Vaporwave (Kept Small & Toned Down)**
-		"#FF4E50", // Hot Neon Sunset Red
-		"#FC913A", // Tangerine Glow
-		"#F9D423", // Electric Golden Yellow
-		"#E3170A", // Ferrari Red
-		"#8338EC", // Ultra Violet Purple
-		"#5A189A", // Vaporwave Dark Purple
-		"#480CA8", // Deep Midnight Indigo
-		"#3A86FF", // Cyber Blue
-		"#1BE7FF", // Bright Sky Cyan
-		"#2EC4B6", // Vibrant Teal Green
-		"#3A506B", // Deep Synthwave Blue
-		"#0A1128", // Outer Space Navy
-		"#041F60",  // Galactic Blue
-		"#5D2E8C", // Deep Amethyst Purple
+		"#9B5DE5", // Grape Flash
+		"#1BE7FF", // Sky Cyan
+		"#72EFDD", // Neon Mint (edge-case but okay)
+		"#FF8C42", // Peach Orange
+		"#FFBE0B", // Gen Z Yellow (deepened)
+		"#2EC4B6", // Blue-Green Pop
+		"#FF4E50", // Sunset Red
+		"#E3170A"  // Ferrari Red
 	];
 	return palette[Math.floor(Math.random() * palette.length)];
 }
@@ -971,29 +937,27 @@ export default class synapse extends Plugin {
 
 
 	async checkForTrigger(editor: Editor) {
+		let currentQuery = "";
 		if (DEBUG_MODE) console.log("🔍 checkForTrigger function called!");
 
 		try {
 			const cursor = editor.getCursor();
 			const line = editor.getLine(cursor.line);
-			const match = line.match(/@@(.*)$/);
+			const beforeCursor = line.substring(0, cursor.ch);
+			const triggerIndex = beforeCursor.lastIndexOf("@@");
 			const filePaths: string[] = [];
 
-			if (match) {
-				const currentQuery = match ? match[1].trim() : "";
-				if (DEBUG_MODE) console.log("Current Search Query:", currentQuery);
-				const searchQuery = match[1].trim();  // Extract search term after "@@"
-				if (DEBUG_MODE) console.log("🔍 Search query detected:", searchQuery);
+			if (triggerIndex !== -1) {
+				currentQuery = beforeCursor.slice(triggerIndex + 2).trim();
 
 				if (this.settings.enableBiblicalStory) {
 					filePaths.push("http://20.115.87.69/knb1_public/BST_Site_Metadata/metadata.json");
 				}
 
-				// ✅ Ensure only enabled metadata sources are loaded
 				if (Array.isArray(this.settings.metadataUrls) && this.settings.metadataUrls.length > 0) {
 					const enabledUrls = this.settings.metadataUrls
-						.filter(entry => entry.enabled) // ✅ Only include enabled sources
-						.map(entry => entry.url); // ✅ Extract just the URLs
+						.filter(entry => entry.enabled)
+						.map(entry => entry.url);
 
 					filePaths.push(...enabledUrls);
 				}
@@ -1002,21 +966,15 @@ export default class synapse extends Plugin {
 				const collections = await loadAndMergeJSONs(filePaths);
 				if (DEBUG_MODE) console.log("📜 Raw collections:", collections);
 
-				// ✅ If no search query, show everything
-				let filteredCollections: { collectionName: string; designator: string; items: any[] }[];
-				if (searchQuery.length === 0) {
-					if (DEBUG_MODE) console.log("🟢 No search term. Showing all results.");
-					filteredCollections = collections;
-				} else {
-					if (DEBUG_MODE) console.log("🔍 Filtering results for:", searchQuery);
-					filteredCollections = performFuzzySearch(collections, searchQuery);
+				const filteredCollections: { collectionName: string; designator: string; items: any[] }[] =
+					currentQuery.length === 0
+						? collections
+						: performFuzzySearch(collections, currentQuery);
 
-					if (!filteredCollections || filteredCollections.length === 0) {
-						console.error("🚨 ERROR: performFuzzySearch returned EMPTY results!");
-					}
+				if (!filteredCollections || filteredCollections.length === 0) {
+					console.warn("⚠️ No matching results.");
 				}
 
-				// 🔥 Fix Cursor Position **Immediately**
 				setTimeout(() => {
 					const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 					if (!view) {
@@ -1025,7 +983,7 @@ export default class synapse extends Plugin {
 					}
 
 					const cmEditor = view.editor as any;
-					let modalPosition = { top: 100, left: 100 }; // Default
+					let modalPosition = { top: 100, left: 100 };
 
 					if (typeof cmEditor.coordsAtPos === "function") {
 						const cursorPos = cmEditor.getCursor();
@@ -1034,18 +992,12 @@ export default class synapse extends Plugin {
 						if (coords) {
 							modalPosition = {
 								top: coords.bottom + 5,
-								left: coords.left
+								left: coords.left,
 							};
 							if (DEBUG_MODE) console.log("📌 Retrieved Cursor Coordinates:", coords);
-						} else {
-							console.warn("⚠️ coordsAtPos() returned null! Using fallback.");
 						}
-					} else {
-						console.warn("⚠️ coordsAtPos() function is missing! Using fallback.");
 					}
 
-					// 🔥 Immediately Open Modal Even Before Typing
-					if (DEBUG_MODE) console.log("🛠 Preparing to open modal at:", modalPosition);
 					if (!this.searchModal) {
 						if (DEBUG_MODE) console.log("🆕 Creating and opening modal...");
 						this.searchModal = new JSONSearchModal(this.app, filteredCollections, async (result: any) => {
@@ -1053,9 +1005,11 @@ export default class synapse extends Plugin {
 								console.error("❌ No result selected.");
 								return;
 							}
-							if (DEBUG_MODE) console.log(result.collectionName)
+
 							const content = `COLLECTION: ${result.collectionName}\nTITLE: "${result.title}"\nAUTHOR: ${result.author}\nPUBLISHER: ${result.publisher}\nDATE: ${result.date}\nURL: ${result.url}\nRIS: ${result.ris}\nDESCRIPTION: ${result.description || ""}\n\n-----------------------------------\nWRITE BELOW ->\n\n`;
+
 							const author = result.author || "Unknown Author";
+
 							const filePath = await createNoteInHierarchy(
 								this.app,
 								result.title,
@@ -1066,16 +1020,12 @@ export default class synapse extends Plugin {
 								author
 							);
 
-							// Remove "@@" after selection
-							const cursor = editor.getCursor();
-							const line = editor.getLine(cursor.line);
 							const matchIndex = line.indexOf("@@");
 							if (matchIndex !== -1) {
 								editor.replaceRange("", { line: cursor.line, ch: matchIndex }, { line: cursor.line, ch: line.length });
 							}
 
-							// Insert link
-							const insertion = `[[${filePath}]]`;  // ✅ Insert the correct file link
+							const insertion = `[[${filePath}]]`;
 							editor.replaceRange(insertion, editor.getCursor());
 
 							if (this.searchModal) {
@@ -1085,43 +1035,12 @@ export default class synapse extends Plugin {
 						}, modalPosition, currentQuery);
 					} else {
 						if (DEBUG_MODE) console.log("♻️ Updating modal results...");
-						if (this.searchModal) {
-							if (DEBUG_MODE) console.log("♻️ Updating modal results...");
-							this.searchModal.updateResults(filteredCollections, currentQuery);
-						} else {
-							if (DEBUG_MODE) console.log("🆕 Creating a new search modal...");
-							this.searchModal = new JSONSearchModal(this.app, filteredCollections, async (result: any) => {
-								if (!result) {
-									console.error("❌ No result selected.");
-									return;
-								}
-
-								const content = `COLLECTION: ${result.collectionName}\nTITLE: "${result.title}"\nAUTHOR: ${result.author}\nPUBLISHER: ${result.publisher}\nDATE: ${result.date}\nURL: ${result.url}\nRIS: ${result.ris}\nDESCRIPTION: ${result.description || ""}\n\n-----------------------------------\nWRITE BELOW ->\n\n`;
-
-								const filePath = await createNoteInHierarchy(
-									this.app,
-									result.title,
-									content,
-									result.collectionName,
-									result.designator,
-									result.categoryName
-								);
-
-								// ✅ Insert correct file link instead of duplicate note creation
-								const insertion = `[[${filePath}]]`;
-								editor.replaceRange(insertion, editor.getCursor());
-
-								if (this.searchModal) {
-									this.searchModal.close();
-									this.searchModal = null;
-								}
-							}, modalPosition, currentQuery);
-						}
+						this.searchModal.updateResults(filteredCollections, currentQuery);
 					}
 
 					if (DEBUG_MODE) console.log("📌 Opening modal at:", modalPosition);
 					this.searchModal.open(modalPosition);
-				}, 1);  // 🔥 **1ms Delay Forces Cursor Update**
+				}, 1);
 			} else {
 				if (DEBUG_MODE) console.log("❌ No '@@' detected, closing search modal.");
 				if (this.searchModal) {
@@ -1136,6 +1055,7 @@ export default class synapse extends Plugin {
 
 	///////BEGINNING OF ONLOAD//////
 	async onload() {
+
 		if (DEBUG_MODE) console.log("synapse loaded!");
 		await this.loadSettings();
 

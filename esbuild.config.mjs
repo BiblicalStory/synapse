@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import process from "process";
 import builtins from "builtin-modules";
+import { copyFileSync } from "fs";
 
 const banner =
 	`/*
@@ -31,18 +32,24 @@ const context = await esbuild.context({
 		"@lezer/common",
 		"@lezer/highlight",
 		"@lezer/lr",
-		...builtins],
+		...builtins,
+	],
 	format: "cjs",
 	target: "es2018",
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
-	outdir: ".",
+	outdir: "dist",
 	minify: prod,
 });
 
 if (prod) {
 	await context.rebuild();
+
+	// ✅ Copy support files to dist/
+	copyFileSync("manifest.json", "dist/manifest.json");
+	copyFileSync("styles.css", "dist/styles.css");
+
 	process.exit(0);
 } else {
 	await context.watch();

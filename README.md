@@ -1,11 +1,11 @@
 README
-synapse v. 1.1.2
+synapse v1.1.3
 copyright 2025 BiblicalStory Incorporated
 
 IMPORTANT NOTE: synapse is a plugin that remotely accesses data from the internet. The user should be sure to trust the source of any remote database that they choose to activate/leave active within synapse. 
 
 
-# synapse README (v.1.1.2)
+# synapse README (v.1.1.3)
 
 
 Synapse is an Obsidian-based research system developed by BiblicalStory that connects to remote web resources through a standard JSON protocol. This allows researchers using Obsidian to make constructive links to external resources published on the web or on remote servers.
@@ -41,7 +41,7 @@ synapse is only the beginning — BiblicalStory is building out a roadmap which 
 4. Enable the synapse plugin from the Obsidian settings.
 
 
-## JSON Metadata Structure
+## JSON Metadata Structure (synapse Research Transport Protocol, S-RTP)
 
 Each metadata source follows this structured JSON format:
 

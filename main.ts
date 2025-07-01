@@ -217,7 +217,7 @@ class synapseSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl("h1", { text: "synapscide" });
+		containerEl.createEl("h1", { text: "synapse settings" });
 
 		/*// ✅ Close search modal if settings are opened
 		if (this.plugin.searchModal) {

@@ -1,6 +1,6 @@
 import { App, Modal, MarkdownView, Plugin, Notice, Editor, PluginSettingTab, Setting } from 'obsidian';
 import { performFuzzySearch } from "./searchEngine";
-const DEBUG_MODE = false;
+const DEBUG_MODE = true;
 
 // Plugin Settings Interface
 interface synapseSettings {
@@ -903,7 +903,28 @@ function getRandomColor() {
 		"#FFBE0B", // Gen Z Yellow (deepened)
 		"#2EC4B6", // Blue-Green Pop
 		"#FF4E50", // Sunset Red
-		"#E3170A"  // Ferrari Red
+		"#E3170A",  // Ferrari Red
+
+		"#0CF5DA", // Ion Mint — TikTok-neon & hover-pop ready
+		"#00B4D8", // Neon Aqua Pop — clean, mobile-friendly
+		"#3A86FF", // Cyber Blue — already approved, perfect
+		"#6A00F4", // Purple Surge — loud and proud
+		"#1D6A8C", // Alloy Blue — strong accent for “clean design”
+		"#5F27CD", // Cosmic Signal — edgy but usable
+
+		"#533E85", // Hyper Indigo — modern and professional
+		"#2D7C6F", // Jade Console — mature but fresh
+		"#256D7B", // Ocean Depth — deep and aesthetic
+		"#295D57", // Chlorophyll Dust — dark UI friendly green
+		"#5C398F", // Circuit Grape — vibes like Spotify Wrapped
+		"#362759", // Subspace Violet — cozy and deep
+
+		"#D4AF37", // Dark Gold — classic glam
+		"#C19A6B", // Brass Signal — very vintage
+		"#FFAA33", // Amber Glint — perfect for titles/buttons
+		"#4A2C6B", // Royal Plasma — rich plum, disco poster ready
+		"#1F4E44", // Quantum Fern — 70s appliance green
+		"#19535F", // Petroleum Blue — retro steel
 	];
 	return palette[Math.floor(Math.random() * palette.length)];
 }
@@ -1022,12 +1043,19 @@ export default class synapse extends Plugin {
 
 							const matchIndex = line.indexOf("@@");
 							if (matchIndex !== -1) {
-								editor.replaceRange("", { line: cursor.line, ch: matchIndex }, { line: cursor.line, ch: line.length });
+								const cursorPos = editor.getCursor();
+								editor.replaceRange(
+									"",
+									{ line: cursor.line, ch: matchIndex },
+									{ line: cursor.line, ch: cursorPos.ch }
+								);
 							}
 
+							// Now insert the link
 							const insertion = `[[${filePath}]]`;
 							editor.replaceRange(insertion, editor.getCursor());
 
+							// Close modal
 							if (this.searchModal) {
 								this.searchModal.close();
 								this.searchModal = null;

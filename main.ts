@@ -582,6 +582,19 @@ class JSONSearchModal {
 		this.results.forEach((collection) => {
 			if (!this.colorMap.has(collection.collectionName)) {
 				this.colorMap.set(collection.collectionName, getRandomColor());
+
+				let collectionURL = collection?.url || "#";
+
+				// ✅ If any item contains collection_url, prefer it
+				if (Array.isArray(collection.items) && collection.items.length > 0) {
+					const firstWithCollectionURL = collection.items.find((item: any) => item.collection_url);
+					if (firstWithCollectionURL?.collection_url) {
+						collectionURL = firstWithCollectionURL.collection_url;
+					}
+				}
+
+
+
 			}
 			const collectionColor = this.colorMap.get(collection.collectionName) || "#CCCCCC";
 			const entryColor = getModifiedColor(collectionColor, 0.85);
@@ -992,6 +1005,14 @@ export default class synapse extends Plugin {
 						? collections
 						: performFuzzySearch(collections, currentQuery);
 
+				// ✅ Re-insert collection_url into filtered collections (so modal doesn't lose them)
+				for (const collection of filteredCollections) {
+					const original = collections.find((c) => c.collectionName === collection.collectionName);
+					if (original?.url) {
+						(collection as any).url = original.url;
+					}
+				}
+
 				if (!filteredCollections || filteredCollections.length === 0) {
 					console.warn("⚠️ No matching results.");
 				}
@@ -1027,8 +1048,51 @@ export default class synapse extends Plugin {
 								return;
 							}
 
-							const content = `COLLECTION: ${result.collectionName}\nTITLE: "${result.title}"\nAUTHOR: ${result.author}\nPUBLISHER: ${result.publisher}\nDATE: ${result.date}\nURL: ${result.url}\nRIS: ${result.ris}\nDESCRIPTION: ${result.description || ""}\n\n-----------------------------------\nWRITE BELOW ->\n\n`;
+							const knownKeys = [
+								"title", "author", "publisher", "date", "url", "description",
+								"collectionName", "designator", "categoryName", "collection_url", "ris"
+							];
 
+							const metaLines: string[] = [];
+
+							// Standard fields
+							metaLines.push(`COLLECTION: ${result.collectionName}`);
+							metaLines.push(`TITLE: "${result.title || "Untitled"}"`);
+							metaLines.push(`AUTHOR: ${result.author || "Unknown Author"}`);
+							metaLines.push(`PUBLISHER: ${result.publisher || "Unknown Publisher"}`);
+							metaLines.push(`DATE: ${result.date || "No Date"}`);
+							metaLines.push(`URL: ${result.url || "None"}`);
+
+							// New: Add collection_url if different and present
+							if (result.collection_url && result.collection_url !== result.url) {
+								metaLines.push(`COLLECTION URL: ${result.collection_url}`);
+							}
+
+							// Optional description
+							if (result.description) {
+								metaLines.push(`DESCRIPTION: ${result.description}`);
+							}
+
+							// Optional full RIS
+							if (result.ris) {
+								metaLines.push(`RIS: ${result.ris}`);
+							}
+
+							// Detect and append any extra fields not in knownKeys
+							const extraFields = Object.entries(result)
+								.filter(([key]) => !knownKeys.includes(key))
+								.map(([key, val]) => `${key}: ${typeof val === "object" ? JSON.stringify(val, null, 2) : val}`);
+
+							const content = `${metaLines.join("\n")}
+
+-----------------------------------
+# Additional Metadata
+\n
+${extraFields.length > 0 ? extraFields.join("\n") : "(None)"}
+
+-----------------------------------
+WRITE BELOW ->
+\n\n`;
 							const author = result.author || "Unknown Author";
 
 							const filePath = await createNoteInHierarchy(

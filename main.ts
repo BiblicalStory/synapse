@@ -5,11 +5,15 @@ const DEBUG_MODE = true;
 // Plugin Settings Interface
 interface synapseSettings {
 	enableBiblicalStory: boolean;
-	metadataUrls: { url: string; enabled: boolean }[];  // ✅ Fix: Ensure correct type
+	enableLIRF?: boolean; // NEW
+	enableLIRFCodemap?: boolean;
+	metadataUrls: { url: string; enabled: boolean }[];
 }
 
 const DEFAULT_SETTINGS: synapseSettings = {
 	enableBiblicalStory: true,
+	enableLIRF: true, // NEW
+	enableLIRFCodemap: true,
 	metadataUrls: [],
 };
 
@@ -228,12 +232,35 @@ class synapseSettingTab extends PluginSettingTab {
 
 		// ✅ Toggle for enabling BiblicalStory metadata
 		new Setting(containerEl)
-			.setName("Enable BiblicalStory Metadata")
+			.setName("Enable BiblicalStory Library")
 			.setDesc("Enable the default BiblicalStory library.")
 			.addToggle(toggle =>
 				toggle.setValue(this.plugin.settings.enableBiblicalStory)
 					.onChange(async (value) => {
 						this.plugin.settings.enableBiblicalStory = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// ✅ Toggle for enabling L-IRF Basemap
+		new Setting(containerEl)
+			.setName("Enable L-IRF BST-BASEMAP")
+			.setDesc("Enable the L-IRF BASEMAP research library from BiblicalStory.")
+			.addToggle(toggle =>
+				toggle.setValue(this.plugin.settings.enableLIRF ?? false)
+					.onChange(async (value) => {
+						this.plugin.settings.enableLIRF = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Enable L-IRF CODEMAP")
+			.setDesc("Enable CODEMAP anchor set for the L-IRF model.")
+			.addToggle(toggle =>
+				toggle.setValue(this.plugin.settings.enableLIRFCodemap ?? false)
+					.onChange(async (value) => {
+						this.plugin.settings.enableLIRFCodemap = value;
 						await this.plugin.saveSettings();
 					})
 			);
@@ -476,8 +503,20 @@ async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
 	await Promise.all(filePaths.map(loadJSONData));
 
 	mergedResults.sort((a, b) => {
-		return a.collectionName === "BiblicalStory" ? -1 : b.collectionName === "BiblicalStory" ? 1 : 0;
-	})
+		const nameA = a.collectionName ?? "";
+		const nameB = b.collectionName ?? "";
+
+		if (nameA === "BiblicalStory") return -1;
+		if (nameB === "BiblicalStory") return 1;
+
+		if (nameA === "Codemap") return 1;
+		if (nameB === "Codemap") return -1;
+
+		if (nameA === "L-IRF") return 1;
+		if (nameB === "L-IRF") return -1;
+
+		return 0;
+	});
 
 	if (DEBUG_MODE) console.log(`✅ Merged ${mergedResults.length} collections successfully.`);
 	return mergedResults;
@@ -986,6 +1025,14 @@ export default class synapse extends Plugin {
 
 				if (this.settings.enableBiblicalStory) {
 					filePaths.push("http://20.115.87.69/knb1_public/BST_Site_Metadata/metadata.json");
+				}
+
+				if (this.settings.enableLIRF) {
+					filePaths.push("http://20.115.87.69/knb1_public/BST_Site_Metadata/LIRF_BST_BASEMAP_r1.json");
+				}
+
+				if (this.settings.enableLIRFCodemap) {
+					filePaths.push("http://20.115.87.69/knb1_public/BST_Site_Metadata/LIRF_BST_CODEMAP_r1.json");
 				}
 
 				if (Array.isArray(this.settings.metadataUrls) && this.settings.metadataUrls.length > 0) {

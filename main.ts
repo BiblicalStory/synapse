@@ -506,15 +506,19 @@ async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
 		const nameA = a.collectionName ?? "";
 		const nameB = b.collectionName ?? "";
 
-		if (nameA === "BiblicalStory") return -1;
-		if (nameB === "BiblicalStory") return 1;
+		// Always sort BiblicalStory first
+		if (nameA.includes("BiblicalStory")) return -1;
+		if (nameB.includes("BiblicalStory")) return 1;
 
-		if (nameA === "Codemap") return 1;
-		if (nameB === "Codemap") return -1;
+		// Always sort CODEMAP last
+		if (nameA.includes("CODEMAP")) return 1;
+		if (nameB.includes("CODEMAP")) return -1;
 
-		if (nameA === "L-IRF") return 1;
-		if (nameB === "L-IRF") return -1;
+		// Always sort BASEMAP second-to-last
+		if (nameA.includes("BASEMAP")) return 1;
+		if (nameB.includes("BASEMAP")) return -1;
 
+		// Otherwise, preserve order
 		return 0;
 	});
 

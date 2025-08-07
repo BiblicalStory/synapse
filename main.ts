@@ -721,11 +721,21 @@ class JSONSearchModal {
 			});
 
 			// ✅ Iterate through each entry in the collection
-			collection.items.forEach((result: { title?: string, author?: string, date?: string, url?: string }) => {
+			collection.items.forEach((result: { title?: string, author?: string, date?: string, url?: string, address?: string, }) => {
 				const title = result.title || "Untitled";
 				const author = result.author || "Unknown Author";
 				const date = result.date || "No Date";
 				const url = result.url || "#";
+				const address = result.address || null;
+
+
+				let displayText = `${title} | ${author} | ${date}`;
+
+				// ✅ If an address is present, show it first
+				if (address) {
+					displayText = `${title} | ${author} | ${date} | ${address}`;
+				}
+
 
 				// ✅ Create the entry as a clickable div
 				const entryWrapper = itemsContainer.createDiv();
@@ -739,6 +749,8 @@ class JSONSearchModal {
 				entryWrapper.style.border = "none";
 				entryWrapper.style.borderRadius = "3px";
 				entryWrapper.style.cursor = "pointer"; // ✅ Makes the whole div clickable
+
+
 
 				// ✅ Clicking (left-click) creates a note
 				entryWrapper.addEventListener("click", (event) => {
@@ -770,7 +782,7 @@ class JSONSearchModal {
 				});
 
 				// ✅ Create the entry text
-				const entryText = entryWrapper.createEl("span", { text: `${title} | ${author} | ${date}` });
+				const entryText = entryWrapper.createEl("span", { text: displayText });
 				entryText.style.flexGrow = "1";
 				entryText.style.paddingRight = "10px";
 

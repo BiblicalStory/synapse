@@ -1,11 +1,11 @@
 README
-synapse v1.1.3
+synapse v1.2.0
 copyright 2025 BiblicalStory Incorporated
 
 IMPORTANT NOTE: synapse is a plugin that remotely accesses data from the internet. The user should be sure to trust the source of any remote database that they choose to activate/leave active within synapse. 
 
 
-# synapse README (v.1.1.3)
+# synapse README (v.1.2.0)
 
 
 Synapse is an Obsidian-based research system developed by BiblicalStory that connects to remote web resources through a standard JSON protocol. This allows researchers using Obsidian to make constructive links to external resources published on the web or on remote servers.
@@ -29,7 +29,7 @@ synapse is only the beginning — BiblicalStory is building out a roadmap which 
 - **left click**: left click automatically sets up a folder and places a new note in that folder with the metadata embedded. Once this note is created, synapse inserts an obsidian link to that note inside the editor.
 - **right click (long press for mobile)**: right click automatically follows the link that is embedded in the entry and opens the document in a separate window. This works at the resource level as well as the collection level (right clicking on a collection will open the parent site for that collection, assuming it supplied to the remote database by the publisher of the collection).
 - **Multiple Metadata Sources**: Supports multiple structured JSON sources.
-- **Built-in Support for BiblicalStory Database**: synapse comes pre-configured to access the **BiblicalStory Database** ([www.biblicalstory.org](http://www.biblicalstory.org)), which is enabled by default.
+- **Built-in Support for BiblicalStory Database and L-IRF**: synapse comes pre-configured to access the **BiblicalStory Database** ([www.biblicalstory.org](http://www.biblicalstory.org)), along with L-IRF Codemap and BST-BASEMAP (L-IRF), which are enabled by default. If synapse begins operating slowly (if large datasets are in play), unneeded or unused datasets may be switched off.
 - **Expandable Library Support**: Users can add additional JSON metadata sources by providing their URLs in the settings panel. 
 - **Local Research Management System (Local RMS) Support**: **Import your personal research library** from Zotero, Endnote, other RMS software.** Users can use the built in .RIS file converter to add personal research libraries from software such as Zotero or Endnote. To access this, access the synapse settings in community plugins and drag in your .RIS file exported from your RMS software. The library will be automatically converted to the synapse JSON format and added to the list of active libraries in synapse. 
 

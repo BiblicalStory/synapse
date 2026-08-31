@@ -17,3 +17,11 @@ If your plugin does not need CSS, delete this file.
 .ris-dropzone:hover {
     background-color: var(--background-modifier-hover);
 }
+
+.theme-dark .json-search-popover h2 {
+    color: #ffffff;
+}
+
+.theme-light .json-search-popover h2 {
+    color: #000000;
+}

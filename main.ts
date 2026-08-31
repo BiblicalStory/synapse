@@ -1488,16 +1488,29 @@ export default class synapse extends Plugin {
 				const collections = await loadAndMergeJSONs(this.app, filePaths);
 				if (DEBUG_MODE) console.log("📜 Raw collections:", collections);
 
-				const filteredCollections: { collectionName: string; designator: string; items: any[] }[] =
+				const filteredCollections: { collectionName: string; designator: string; url?: string; items: any[] }[] =
 					currentQuery.length === 0
 						? collections
 						: performFuzzySearch(collections, currentQuery);
 
-				if (currentQuery.length >= 2) {
-					const zoteroCollection = await this.fetchZoteroCollection(currentQuery);
-					if (zoteroCollection) {
-						filteredCollections.push(zoteroCollection);
-					}
+				const zoteroEnabled = this.settings.zoteroEnabled ?? false;
+				const shouldFetchZotero = zoteroEnabled && currentQuery.length >= 2;
+				if (zoteroEnabled) {
+					const libraryType = this.settings.zoteroLibraryType ?? "user";
+					const libraryId = (this.settings.zoteroLibraryId || "").trim();
+					const zoteroUrl =
+						libraryType === "group" && libraryId
+							? `https://www.zotero.org/groups/${libraryId}`
+							: libraryType === "user" && libraryId
+								? `https://www.zotero.org/users/${libraryId}`
+								: "https://www.zotero.org";
+
+					filteredCollections.push({
+						collectionName: "Zotero Library",
+						designator: "ZOT",
+						url: zoteroUrl,
+						items: [],
+					});
 				}
 
 				// ✅ Re-insert collection_url into filtered collections (so modal doesn't lose them)
@@ -1627,6 +1640,19 @@ WRITE BELOW ->
 
 					if (DEBUG_MODE) console.log("📌 Opening modal at:", modalPosition);
 					this.searchModal.open(modalPosition);
+
+					if (shouldFetchZotero) {
+						void this.fetchZoteroCollection(currentQuery).then((zoteroCollection) => {
+							if (!this.searchModal || !zoteroCollection) {
+								return;
+							}
+
+							const withoutZotero = filteredCollections.filter((c) => c.designator !== "ZOT");
+							this.searchModal.updateResults([...withoutZotero, zoteroCollection], currentQuery);
+						}).catch((error) => {
+							console.error("❌ Async Zotero fetch failed:", error);
+						});
+					}
 				}, 1);
 			} else {
 				if (DEBUG_MODE) console.log("❌ No '@@' detected, closing search modal.");

@@ -1,10 +1,10 @@
 README
-synapse v2.0.1
-copyright 2025 BiblicalStory Incorporated
+synapse v2.0.2
+copyright 2026 BiblicalStory Incorporated
 
 Important note: synapse accesses remote data sources over the internet. Only enable sources you trust.
 
-# synapse README (v2.0.1)
+# synapse README (v2.0.2)
 
 Synapse is an Obsidian research bridge developed by BiblicalStory. It connects local and remote research metadata into one in-editor workflow.
 

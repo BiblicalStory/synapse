@@ -1,6 +1,8 @@
 import { App, Modal, MarkdownView, Plugin, Notice, Editor, PluginSettingTab, Setting } from 'obsidian';
 import { performFuzzySearch } from "./searchEngine";
 const DEBUG_MODE = true;
+const METADATA_CACHE_TTL_MS = 120000;
+const metadataCollectionCache = new Map<string, { fetchedAt: number; collection: { url: string; collectionName: string; designator: string; items: any[] } }>();
 
 // Plugin Settings Interface
 interface synapseSettings {
@@ -8,6 +10,12 @@ interface synapseSettings {
 	enableLIRF?: boolean; // NEW
 	enableLIRFCodemap?: boolean;
 	metadataUrls: { url: string; enabled: boolean }[];
+	zoteroApiKey?: string;
+	zoteroSessionOnly?: boolean;
+	zoteroEnabled?: boolean;
+	zoteroLibraryType?: "user" | "group";
+	zoteroLibraryId?: string;
+	zoteroOpenMode?: "zotero-first" | "attachment-first";
 }
 
 const DEFAULT_SETTINGS: synapseSettings = {
@@ -15,6 +23,12 @@ const DEFAULT_SETTINGS: synapseSettings = {
 	enableLIRF: true, // NEW
 	enableLIRFCodemap: true,
 	metadataUrls: [],
+	zoteroApiKey: "",
+	zoteroSessionOnly: false,
+	zoteroEnabled: false,
+	zoteroLibraryType: "user",
+	zoteroLibraryId: "",
+	zoteroOpenMode: "zotero-first",
 };
 
 function parseRIS(risContent: string): any[] {
@@ -200,7 +214,7 @@ async function updateLocalRMS(app: App, jsonPath: string) {
 		const localRMSData = JSON.parse(content);
 
 		// ✅ Merge new data into Synapse metadata
-		await loadAndMergeJSONs([jsonPath]);
+		await loadAndMergeJSONs(app, [jsonPath]);
 
 		if (DEBUG_MODE) console.log(`🔄 Synapse metadata updated from ${jsonPath}`);
 	} catch (error) {
@@ -297,10 +311,10 @@ class synapseSettingTab extends PluginSettingTab {
 							this.display(); // Refresh UI
 						});
 
-					// ✅ Apply Dark Gray Styling
-					button.buttonEl.style.backgroundColor = "#4A4A4A"; // Dark Gray
-					button.buttonEl.style.color = "white"; // White text for contrast
-					button.buttonEl.style.border = "none"; // Remove border
+					// Theme-aware button styling to remain readable across custom themes
+					button.buttonEl.style.backgroundColor = "var(--background-modifier-border, #444)";
+					button.buttonEl.style.color = "var(--text-normal, #f5f5f5)";
+					button.buttonEl.style.border = "1px solid var(--background-modifier-border, #666)";
 					button.buttonEl.style.borderRadius = "4px"; // Rounded corners
 					button.buttonEl.style.padding = "5px 10px"; // Add some padding
 					button.buttonEl.style.cursor = "pointer"; // Keep it clickable
@@ -437,31 +451,139 @@ class synapseSettingTab extends PluginSettingTab {
 					}
 				});
 			});
+
+		containerEl.createEl("h3", { text: "Local RMS (Zotero)" });
+
+		new Setting(containerEl)
+			.setName("Retain Zotero Key For This Session Only")
+			.setDesc("When enabled, the API key is kept in memory only and is not written to plugin settings on disk.")
+			.addToggle(toggle =>
+				toggle
+					.setValue(this.plugin.settings.zoteroSessionOnly ?? false)
+					.onChange(async (value) => {
+						await this.plugin.setZoteroSessionOnly(value);
+						this.display();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Zotero API Key")
+			.setDesc((this.plugin.settings.zoteroSessionOnly ?? false)
+				? "Session-only mode is active. The key will be cleared when Obsidian restarts."
+				: "Saved locally in Synapse plugin settings for convenience.")
+			.addText((text) => {
+				text.setPlaceholder("Enter Zotero API key");
+				text.setValue(this.plugin.getZoteroApiKey());
+				text.inputEl.type = "password";
+				text.inputEl.autocomplete = "off";
+				text.onChange(async (value) => {
+					await this.plugin.setZoteroApiKey(value.trim());
+				});
+			})
+			.addButton((button) => {
+				button.setButtonText("Clear");
+				button.onClick(async () => {
+					await this.plugin.clearZoteroApiKey();
+					this.display();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Enable Zotero Live Search")
+			.setDesc("When enabled, @@ searches include live Zotero matches.")
+			.addToggle(toggle =>
+				toggle
+					.setValue(this.plugin.settings.zoteroEnabled ?? false)
+					.onChange(async (value) => {
+						this.plugin.settings.zoteroEnabled = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Zotero Library Type")
+			.setDesc("Use user for personal library or group for shared Zotero groups.")
+			.addDropdown((dropdown) => {
+				dropdown.addOption("user", "user");
+				dropdown.addOption("group", "group");
+				dropdown.setValue(this.plugin.settings.zoteroLibraryType ?? "user");
+				dropdown.onChange(async (value: "user" | "group") => {
+					this.plugin.settings.zoteroLibraryType = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Zotero Library ID (Optional)")
+			.setDesc("Leave blank for user libraries to auto-resolve from your API key. Required for group libraries.")
+			.addText((text) => {
+				text.setPlaceholder("e.g. 1234567");
+				text.setValue(this.plugin.settings.zoteroLibraryId || "");
+				text.onChange(async (value) => {
+					this.plugin.settings.zoteroLibraryId = value.trim();
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Zotero Right-Click Behavior")
+			.setDesc("Choose the default target. Hold Shift while right-clicking to open the alternate target.")
+			.addDropdown((dropdown) => {
+				dropdown.addOption("zotero-first", "Open Zotero item first");
+				dropdown.addOption("attachment-first", "Open attached/external URL first");
+				dropdown.setValue(this.plugin.settings.zoteroOpenMode ?? "zotero-first");
+				dropdown.onChange(async (value: "zotero-first" | "attachment-first") => {
+					this.plugin.settings.zoteroOpenMode = value;
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Test Zotero Connection")
+			.setDesc("Verify API key, library target, and read permission using a lightweight Zotero API call.")
+			.addButton((button) => {
+				button.setButtonText("Test");
+				button.setCta();
+				button.onClick(async () => {
+					await this.plugin.testZoteroConnection();
+				});
+			});
 	}
 }
 
 // Load JSON Function
-async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
+async function loadAndMergeJSONs(app: App, filePaths: string[]): Promise<any[]> {
 	let mergedResults: { url: string; collectionName: string; designator: string; items: any[] }[] = [];
 
 	// ✅ Helper function to load and extract JSON data
 	const loadJSONData = async (url: string) => {
 		try {
-			const noCacheUrl = url.startsWith("http") ? `${url}?nocache=${Date.now()}` : url;
-			if (DEBUG_MODE) console.log(`📡 Fetching metadata from: ${noCacheUrl}`);
+			const now = Date.now();
+			const cached = metadataCollectionCache.get(url);
+			if (cached && now - cached.fetchedAt <= METADATA_CACHE_TTL_MS) {
+				mergedResults.push({
+					url: cached.collection.url,
+					collectionName: cached.collection.collectionName,
+					designator: cached.collection.designator,
+					items: cached.collection.items,
+				});
+				return;
+			}
+
+			if (DEBUG_MODE) console.log(`📡 Fetching metadata from: ${url}`);
 
 			let data; // Declare data once
 
 			if (url.startsWith("http")) {
 				// ✅ Use fetch() for external sources
-				const response = await fetch(noCacheUrl); // Ensures no caching issues
+				const response = await fetch(url);
 				if (!response.ok) {
 					throw new Error(`Network response was not ok: ${response.status}`);
 				}
 				data = await response.json(); // Assign value
 			} else {
 				// ✅ Use Obsidian's vault adapter for local files
-				const content = await this.app.vault.adapter.read(url);
+				const content = await app.vault.adapter.read(url);
 				data = JSON.parse(content); // Assign value
 			}
 
@@ -487,12 +609,15 @@ async function loadAndMergeJSONs(filePaths: string[]): Promise<any[]> {
 			if (DEBUG_MODE) console.log(`✅ Extracted ${items.length} items from "${collectionName}"`);
 
 			// ✅ Store the result
-			mergedResults.push({
+			const parsedCollection = {
 				collectionName,
 				designator,
 				url: collectionURL, // ✅ Ensure it's stored properly 
 				items
-			});
+			};
+
+			mergedResults.push(parsedCollection);
+			metadataCollectionCache.set(url, { fetchedAt: now, collection: parsedCollection });
 
 		} catch (error) {
 			console.error(`❌ Error loading JSON from ${url}:`, error);
@@ -581,6 +706,7 @@ class JSONSearchModal {
 		this.app = app;
 		this.results = results || [];
 		this.onChoose = onChoose;
+		this.currentQuery = currentQuery || "";
 		this.popover = this.app.workspace.containerEl.createDiv("json-search-popover");
 
 		// ✅ Create a new color map *per instance*
@@ -640,17 +766,18 @@ class JSONSearchModal {
 
 			}
 			const collectionColor = this.colorMap.get(collection.collectionName) || "#CCCCCC";
-			const entryColor = getModifiedColor(collectionColor, 0.85);
 
 			// ✅ Collection header styling
 			const categoryHeader = this.popover.createEl("h4", { text: collection.collectionName });
 			categoryHeader.style.marginTop = "25px";
 			categoryHeader.style.marginBottom = "12px";
 			categoryHeader.style.cursor = "pointer";
-			categoryHeader.style.color = "white";
-			categoryHeader.style.backgroundColor = collectionColor;
+			categoryHeader.style.color = "var(--text-normal, #f5f5f5)";
+			categoryHeader.style.backgroundColor = "var(--background-secondary, #1f1f1f)";
 			categoryHeader.style.padding = "10px";
 			categoryHeader.style.borderRadius = "5px";
+			categoryHeader.style.border = "1px solid var(--background-modifier-border, #444)";
+			categoryHeader.style.borderLeft = `4px solid ${collectionColor}`;
 
 			// ✅ Pull homepage from "Collection.url", NOT from item URLs
 			// ✅ Extract homepage URL from "Collection.url", NOT the JSON source URL
@@ -721,11 +848,23 @@ class JSONSearchModal {
 			});
 
 			// ✅ Iterate through each entry in the collection
-			collection.items.forEach((result: { title?: string, author?: string, date?: string, url?: string, address?: string, }) => {
+			collection.items.forEach((result: { title?: string, author?: string, date?: string, url?: string, address?: string, zoteroWebUrl?: string, zoteroSelectUrl?: string, attachmentUrl?: string, }) => {
 				const title = result.title || "Untitled";
 				const author = result.author || "Unknown Author";
 				const date = result.date || "No Date";
 				const url = result.url || "#";
+				const zoteroWebUrl = result.zoteroWebUrl || "";
+				const zoteroSelectUrl = result.zoteroSelectUrl || "";
+				const attachmentUrl = result.attachmentUrl || result.url || "";
+				const isZoteroEntry = Boolean(zoteroSelectUrl || zoteroWebUrl);
+				const zoteroMode = (((this.app as any).plugins?.getPlugin("synapse")?.settings?.zoteroOpenMode) || "zotero-first") as "zotero-first" | "attachment-first";
+				const zoteroTarget = zoteroSelectUrl || zoteroWebUrl || "";
+				const primaryOpenUrl = isZoteroEntry
+					? (zoteroMode === "attachment-first" ? (attachmentUrl || zoteroTarget || "#") : (zoteroTarget || attachmentUrl || "#"))
+					: (url || "#");
+				const alternateOpenUrl = isZoteroEntry
+					? (zoteroMode === "attachment-first" ? (zoteroTarget || attachmentUrl || "#") : (attachmentUrl || zoteroTarget || "#"))
+					: (url || "#");
 				const address = result.address || null;
 
 
@@ -744,9 +883,10 @@ class JSONSearchModal {
 				entryWrapper.style.alignItems = "center";
 				entryWrapper.style.margin = "5px 0";
 				entryWrapper.style.padding = "5px";
-				entryWrapper.style.backgroundColor = entryColor;
-				entryWrapper.style.color = "white";
-				entryWrapper.style.border = "none";
+				entryWrapper.style.backgroundColor = "var(--background-primary-alt, var(--background-secondary, #181818))";
+				entryWrapper.style.color = "var(--text-normal, #f5f5f5)";
+				entryWrapper.style.border = "1px solid var(--background-modifier-border, #444)";
+				entryWrapper.style.borderLeft = `3px solid ${collectionColor}`;
 				entryWrapper.style.borderRadius = "3px";
 				entryWrapper.style.cursor = "pointer"; // ✅ Makes the whole div clickable
 
@@ -763,8 +903,9 @@ class JSONSearchModal {
 				// ✅ Right-click (or long-press on mobile) opens the external link
 				entryWrapper.addEventListener("contextmenu", (event) => {
 					event.preventDefault(); // ✅ Prevent default right-click menu
-					if (url && url !== "#") {
-						window.open(url, "_blank");
+					const openTarget = event.shiftKey ? alternateOpenUrl : primaryOpenUrl;
+					if (openTarget && openTarget !== "#") {
+						window.open(openTarget, "_blank");
 					}
 				});
 
@@ -772,8 +913,8 @@ class JSONSearchModal {
 				let touchTimer: any;
 				entryWrapper.addEventListener("touchstart", () => {
 					touchTimer = setTimeout(() => {
-						if (url && url !== "#") {
-							window.open(url, "_blank");
+						if (primaryOpenUrl && primaryOpenUrl !== "#") {
+							window.open(primaryOpenUrl, "_blank");
 						}
 					}, 500); // ✅ 500ms = long press
 				});
@@ -797,13 +938,13 @@ class JSONSearchModal {
 		commandBar.style.left = "0px";
 		commandBar.style.width = "100%";
 		commandBar.style.padding = "5px 10px";
-		commandBar.style.backgroundColor = "black";
-		commandBar.style.color = "white";
+		commandBar.style.backgroundColor = "var(--background-primary, #111)";
+		commandBar.style.color = "var(--text-normal, #f5f5f5)";
 		commandBar.style.fontSize = "12px";
 		commandBar.style.fontFamily = "monospace";
 		commandBar.style.display = "flex";
 		commandBar.style.justifyContent = "space-between";
-		commandBar.style.borderTop = "1px solid gray";
+		commandBar.style.borderTop = "1px solid var(--background-modifier-border, #444)";
 		commandBar.style.zIndex = "10";
 
 		const activeCollectionsLabel = commandBar.createEl("span", {
@@ -813,7 +954,7 @@ class JSONSearchModal {
 
 		const searchQueryDisplay = commandBar.createEl("span", { text: `Searching: @@${this.currentQuery}` });
 		searchQueryDisplay.style.flexGrow = "1";
-		searchQueryDisplay.style.color = "white";
+		searchQueryDisplay.style.color = "var(--text-normal, #f5f5f5)";
 		searchQueryDisplay.style.fontSize = "12px";
 		searchQueryDisplay.style.fontFamily = "monospace";
 		searchQueryDisplay.style.textAlign = "right";
@@ -873,13 +1014,13 @@ class JSONSearchModal {
 			width: `${modalWidth}px`,
 			maxHeight: `${modalHeight}px`,
 			overflowY: "auto",
-			background: "black",
-			color: "white",
+			background: "var(--background-primary, #111)",
+			color: "var(--text-normal, #f5f5f5)",
 			padding: "10px",
 			borderRadius: "8px",
-			border: "1px solid gray",
+			border: "1px solid var(--background-modifier-border, #444)",
 			zIndex: "1000",
-			boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.2)"
+			boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.35)"
 		});
 
 		if (!document.body.contains(this.popover)) {
@@ -901,113 +1042,23 @@ class JSONSearchModal {
 
 function getRandomColor() {
 	const palette = [
-		// 🔥 Warm Earth & Autumn Ember
-		"#B35042", // Deep Rust Red
-		"#C26E40", // Warm Burnt Orange
-		"#9C6644", // Burnt Mocha
-		"#8E5E34", // Weathered Copper
-		"#C08457", // Rustic Amber
-		"#AB5E3F", // Deep Auburn
-		"#AD8A64", // Aged Copper
-		"#9A5330", // Deep Clay Red
-		"#D98E04", // Goldenrod Flame
-		"#E07A5F", // Soft Terracotta
-
-		// 🌊 Cool Neutrals & Ocean Tones
-		"#5C6B73", // Stormy Blue Gray
-		"#3E505B", // Steely Blue-Gray
-		"#5F6B77", // Smoked Steel
-		"#204E5F", // Muted Teal Blue
-		"#554971", // Royal Indigo
-		"#3D5A80", // Ocean Steel
-		"#5D737E", // Soft Slate Blue
-		"#7E8F8A", // Slate Teal
-		"#728FCE", // Cloudy Periwinkle
-		"#041F60", // Galactic Navy
-
-		// 🌿 Fresh Naturals & Earth Greens
-		"#70A288", // Sage Green
-		"#A4C3B2", // Fern Mist
-		"#5B6C5D", // Military Olive
-		"#52796F", // Retro Moss
-		"#A07C40", // Olive Brown
-		"#C5A880", // Faded Sandstone
-		"#D4A373", // Golden Beige
-		"#8E6F52", // Weathered Chestnut
-		"#6A5145", // Rugged Bark
-		"#876445", // Deep Bronze
-
-		// 🌸 Blush & Rosewood (No Pinks Too Bright)
-		"#C08497", // Vintage Blush
-		"#B5838D", // Muted Rosewood
-		"#C9ADA7", // Warm Blush Beige
-		"#BAA89C", // Neutral Almond
-		"#A37551", // Soft Caramel
-		"#9F7F62", // Dusty Sand
-		"#705438", // Umber Shadow
-		"#6D597A", // Dusky Grape
-		"#7A6C5D", // Weathered Walnut
-		"#6B4226", // Distressed Brown
-
-		// 💫 Deep Sky, Indigo, and Muted Purples
-		"#A29BFE", // Soft Lavender
-		"#C3B1E1", // Muted Pastel Purple
-		"#5D2E8C", // Deep Amethyst
-		"#6F2DBD", // Bold Plum
-		"#480CA8", // Indigo Pulse
-		"#3A506B", // Synthwave Steel
-		"#0A1128", // Deep Navy Black
-		"#3D348B", // Ultramarine Indigo
-		"#5A189A", // Royal Violet
-		"#8338EC", // Electric Purple
-
-		// ⚡ Accent Pops (Bold, Not Washed)
 		"#3A86FF", // Cyber Blue
+		"#00B4D8", // Aqua
+		"#1D6A8C", // Alloy Blue
+		"#2EC4B6", // Blue-Green
 		"#06D6A0", // Vibrant Teal
-		"#9B5DE5", // Grape Flash
-		"#1BE7FF", // Sky Cyan
-		"#72EFDD", // Neon Mint (edge-case but okay)
-		"#FF8C42", // Peach Orange
-		"#FFBE0B", // Gen Z Yellow (deepened)
-		"#2EC4B6", // Blue-Green Pop
+		"#295D57", // Deep Green
+		"#70A288", // Sage
+		"#3D5A80", // Ocean Steel
+		"#5F27CD", // Cosmic Violet
+		"#533E85", // Hyper Indigo
+		"#5C398F", // Circuit Grape
+		"#FFAA33", // Amber
+		"#FF8C42", // Orange Accent
 		"#FF4E50", // Sunset Red
-		"#E3170A",  // Ferrari Red
-
-		"#0CF5DA", // Ion Mint — TikTok-neon & hover-pop ready
-		"#00B4D8", // Neon Aqua Pop — clean, mobile-friendly
-		"#3A86FF", // Cyber Blue — already approved, perfect
-		"#6A00F4", // Purple Surge — loud and proud
-		"#1D6A8C", // Alloy Blue — strong accent for “clean design”
-		"#5F27CD", // Cosmic Signal — edgy but usable
-
-		"#533E85", // Hyper Indigo — modern and professional
-		"#2D7C6F", // Jade Console — mature but fresh
-		"#256D7B", // Ocean Depth — deep and aesthetic
-		"#295D57", // Chlorophyll Dust — dark UI friendly green
-		"#5C398F", // Circuit Grape — vibes like Spotify Wrapped
-		"#362759", // Subspace Violet — cozy and deep
-
-		"#D4AF37", // Dark Gold — classic glam
-		"#C19A6B", // Brass Signal — very vintage
-		"#FFAA33", // Amber Glint — perfect for titles/buttons
-		"#4A2C6B", // Royal Plasma — rich plum, disco poster ready
-		"#1F4E44", // Quantum Fern — 70s appliance green
-		"#19535F", // Petroleum Blue — retro steel
+		"#8E5E34", // The one retained brown
 	];
 	return palette[Math.floor(Math.random() * palette.length)];
-}
-
-function getModifiedColor(hex: string, brightnessFactor = 1.25) {
-	let r = parseInt(hex.slice(1, 3), 16);
-	let g = parseInt(hex.slice(3, 5), 16);
-	let b = parseInt(hex.slice(5, 7), 16);
-
-	// ✅ Increase brightness while keeping the same hue
-	r = Math.min(255, Math.round(r * brightnessFactor));
-	g = Math.min(255, Math.round(g * brightnessFactor));
-	b = Math.min(255, Math.round(b * brightnessFactor));
-
-	return `rgb(${r}, ${g}, ${b})`;
 }
 
 
@@ -1016,12 +1067,386 @@ export default class synapse extends Plugin {
 	settings: synapseSettings;
 	public searchModal: JSONSearchModal | null = null;
 	private editorChangeHandler: ((editor: Editor) => Promise<void>) | null = null;
+	private sessionZoteroApiKey = "";
+	private cachedZoteroUserId: string | null = null;
+	private zoteroNoticeTimestamps = new Map<string, number>();
+	private zoteroRateLimitedUntil = 0;
+	private zoteroLastRequestAt = 0;
+	private zoteroLastCacheKey = "";
+	private zoteroLastResultAt = 0;
+	private zoteroLastResult: { collectionName: string; designator: string; url: string; items: any[] } | null = null;
+
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+
+		if (this.settings.zoteroSessionOnly) {
+			this.sessionZoteroApiKey = this.settings.zoteroApiKey || "";
+			this.settings.zoteroApiKey = "";
+		}
+
 		if (DEBUG_MODE) console.log("Loaded settings:", this.settings);
 	}
+
 	async saveSettings() {
-		await this.saveData(this.settings);
+		const persistedSettings = { ...this.settings };
+		if (persistedSettings.zoteroSessionOnly) {
+			persistedSettings.zoteroApiKey = "";
+		}
+		await this.saveData(persistedSettings);
+	}
+
+	getZoteroApiKey(): string {
+		return this.settings.zoteroSessionOnly ? this.sessionZoteroApiKey : (this.settings.zoteroApiKey || "");
+	}
+
+	async setZoteroApiKey(apiKey: string): Promise<void> {
+		if (this.settings.zoteroSessionOnly) {
+			this.sessionZoteroApiKey = apiKey;
+			this.settings.zoteroApiKey = "";
+		} else {
+			this.settings.zoteroApiKey = apiKey;
+		}
+		await this.saveSettings();
+	}
+
+	async clearZoteroApiKey(): Promise<void> {
+		this.sessionZoteroApiKey = "";
+		this.settings.zoteroApiKey = "";
+		await this.saveSettings();
+	}
+
+	async setZoteroSessionOnly(enabled: boolean): Promise<void> {
+		if (enabled === (this.settings.zoteroSessionOnly ?? false)) {
+			return;
+		}
+
+		if (enabled) {
+			if (!this.sessionZoteroApiKey && this.settings.zoteroApiKey) {
+				this.sessionZoteroApiKey = this.settings.zoteroApiKey;
+			}
+			this.settings.zoteroApiKey = "";
+		} else {
+			if (!this.settings.zoteroApiKey && this.sessionZoteroApiKey) {
+				this.settings.zoteroApiKey = this.sessionZoteroApiKey;
+			}
+		}
+
+		this.settings.zoteroSessionOnly = enabled;
+		await this.saveSettings();
+	}
+
+	private notifyZotero(message: string, minIntervalMs = 10000): void {
+		const now = Date.now();
+		const last = this.zoteroNoticeTimestamps.get(message) || 0;
+		if (now - last >= minIntervalMs) {
+			new Notice(message);
+			this.zoteroNoticeTimestamps.set(message, now);
+		}
+	}
+
+	private async resolveZoteroUserId(): Promise<string | null> {
+		if (this.cachedZoteroUserId) {
+			return this.cachedZoteroUserId;
+		}
+
+		const apiKey = this.getZoteroApiKey();
+		if (!apiKey) {
+			return null;
+		}
+
+		try {
+			const response = await fetch("https://api.zotero.org/keys/current", {
+				headers: {
+					"Zotero-API-Key": apiKey,
+					"Zotero-API-Version": "3",
+					"Accept": "application/json",
+				},
+			});
+
+			if (!response.ok) {
+				console.error(`❌ Failed to resolve Zotero user ID: ${response.status}`);
+				return null;
+			}
+
+			const keyInfo = await response.json();
+			const userIdValue = keyInfo?.userID ?? keyInfo?.userId ?? keyInfo?.user?.id ?? null;
+			const userId = userIdValue ? String(userIdValue) : null;
+			if (userId) {
+				this.cachedZoteroUserId = userId;
+			}
+			return userId;
+		} catch (error) {
+			console.error("❌ Error resolving Zotero user ID:", error);
+			return null;
+		}
+	}
+
+	async testZoteroConnection(): Promise<void> {
+		if (!(this.settings.zoteroEnabled ?? false)) {
+			new Notice("⚠️ Zotero Live Search is disabled. Enable it first.");
+			return;
+		}
+
+		const apiKey = this.getZoteroApiKey();
+		if (!apiKey) {
+			new Notice("⚠️ No Zotero API key found. Enter your key first.");
+			return;
+		}
+
+		const libraryPath = await this.getZoteroLibraryPath();
+		if (!libraryPath) {
+			if ((this.settings.zoteroLibraryType ?? "user") === "group") {
+				new Notice("⚠️ Group mode requires a Group ID.");
+			} else {
+				new Notice("⚠️ Could not resolve user library. Enter your numeric Zotero User ID.");
+			}
+			return;
+		}
+
+		const endpoint = `https://api.zotero.org/${libraryPath}/items?format=json&limit=1`;
+
+		try {
+			const response = await fetch(endpoint, {
+				headers: {
+					"Zotero-API-Key": apiKey,
+					"Zotero-API-Version": "3",
+					"Accept": "application/json",
+				},
+			});
+
+			if (response.ok) {
+				new Notice(`✅ Zotero connected: ${libraryPath}`);
+				return;
+			}
+
+			if (response.status === 401) {
+				new Notice("❌ Zotero 401: API key is invalid or revoked.");
+				return;
+			}
+
+			if (response.status === 403) {
+				new Notice("❌ Zotero 403: key lacks read permission for this library, or library ID/type is mismatched.");
+				return;
+			}
+
+			if (response.status === 404) {
+				new Notice("❌ Zotero 404: library path not found. Check Library Type and numeric ID.");
+				return;
+			}
+
+			if (response.status === 429) {
+				new Notice("⚠️ Zotero 429: rate limited. Wait briefly and retry.");
+				return;
+			}
+
+			new Notice(`❌ Zotero test failed (${response.status}).`);
+		} catch (error) {
+			console.error("❌ Zotero connection test failed:", error);
+			new Notice("❌ Zotero test failed due to a network or CORS error.");
+		}
+	}
+
+	private async getZoteroLibraryPath(): Promise<string | null> {
+		const libraryType = this.settings.zoteroLibraryType ?? "user";
+
+		if (libraryType === "group") {
+			const groupId = (this.settings.zoteroLibraryId || "").trim();
+			if (!groupId) {
+				return null;
+			}
+			return `groups/${groupId}`;
+		}
+
+		const explicitUserId = (this.settings.zoteroLibraryId || "").trim();
+		if (explicitUserId) {
+			return `users/${explicitUserId}`;
+		}
+
+		const userId = await this.resolveZoteroUserId();
+		if (!userId) {
+			return null;
+		}
+
+		return `users/${userId}`;
+	}
+
+	private formatZoteroCreators(creators: any[] | undefined): string {
+		if (!Array.isArray(creators) || creators.length === 0) {
+			return "Unknown Author";
+		}
+
+		const names = creators
+			.map((creator) => {
+				const firstName = creator?.firstName || "";
+				const lastName = creator?.lastName || "";
+				const fullName = `${firstName} ${lastName}`.trim();
+				return fullName || creator?.name || "";
+			})
+			.filter(Boolean);
+
+		if (names.length === 0) {
+			return "Unknown Author";
+		}
+
+		if (names.length <= 3) {
+			return names.join(", ");
+		}
+
+		return `${names.slice(0, 3).join(", ")} et al.`;
+	}
+
+	private async fetchZoteroCollection(currentQuery: string): Promise<{ collectionName: string; designator: string; url: string; items: any[] } | null> {
+		if (!(this.settings.zoteroEnabled ?? false)) {
+			return null;
+		}
+
+		const apiKey = this.getZoteroApiKey();
+		if (!apiKey) {
+			return null;
+		}
+
+		const libraryPath = await this.getZoteroLibraryPath();
+		if (!libraryPath) {
+			if ((this.settings.zoteroLibraryType ?? "user") === "group") {
+				this.notifyZotero("⚠️ Zotero group mode requires a Group ID in settings.");
+			} else {
+				this.notifyZotero("⚠️ Zotero user ID auto-detect failed. Add your Zotero User ID in settings.");
+			}
+			return null;
+		}
+
+		const normalizedQuery = (currentQuery || "").trim();
+		if (normalizedQuery.length === 0) {
+			return null;
+		}
+
+		const cacheKey = `${libraryPath}::${normalizedQuery || "[recent]"}`;
+		const now = Date.now();
+		const cacheWindowMs = 15000;
+		const minRequestIntervalMs = 900;
+
+		if (cacheKey === this.zoteroLastCacheKey && now - this.zoteroLastResultAt <= cacheWindowMs) {
+			return this.zoteroLastResult;
+		}
+
+		if (normalizedQuery.length === 1) {
+			return null;
+		}
+
+		if (now < this.zoteroRateLimitedUntil) {
+			const waitSeconds = Math.max(1, Math.ceil((this.zoteroRateLimitedUntil - now) / 1000));
+			this.notifyZotero(`⚠️ Zotero rate-limited. Waiting ${waitSeconds}s before retry.`);
+			return cacheKey === this.zoteroLastCacheKey ? this.zoteroLastResult : null;
+		}
+
+		if (now - this.zoteroLastRequestAt < minRequestIntervalMs) {
+			return cacheKey === this.zoteroLastCacheKey ? this.zoteroLastResult : null;
+		}
+
+		this.zoteroLastRequestAt = now;
+
+		const params = new URLSearchParams({
+			format: "json",
+			limit: "100",
+			sort: "dateModified",
+			direction: "desc",
+		});
+
+		if (normalizedQuery.length > 0) {
+			params.set("q", normalizedQuery);
+			params.set("qmode", "everything");
+		}
+
+		const endpoint = `https://api.zotero.org/${libraryPath}/items?${params.toString()}`;
+
+		try {
+			const response = await fetch(endpoint, {
+				headers: {
+					"Zotero-API-Key": apiKey,
+					"Zotero-API-Version": "3",
+					"Accept": "application/json",
+				},
+			});
+
+			if (!response.ok) {
+				console.error(`❌ Zotero fetch failed: ${response.status}`);
+				if (response.status === 429) {
+					const retryAfter = Number.parseInt(response.headers.get("Retry-After") || "", 10);
+					const waitSeconds = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 30;
+					this.zoteroRateLimitedUntil = Date.now() + waitSeconds * 1000;
+					this.notifyZotero(`⚠️ Zotero rate-limited (429). Retrying in ${waitSeconds}s.`);
+					return cacheKey === this.zoteroLastCacheKey ? this.zoteroLastResult : null;
+				}
+				if (response.status === 401) {
+					this.notifyZotero("❌ Zotero auth failed (401). API key invalid or revoked.");
+				} else if (response.status === 403) {
+					this.notifyZotero("❌ Zotero auth failed (403). Key lacks library read permission or library target is wrong.");
+				} else {
+					this.notifyZotero(`❌ Zotero fetch failed (${response.status}).`);
+				}
+				return null;
+			}
+
+			const rawItems = await response.json();
+			if (!Array.isArray(rawItems)) {
+				return null;
+			}
+
+			const normalizedItems = rawItems
+				.filter((item: any) => item?.data?.itemType !== "attachment" && item?.data?.itemType !== "note")
+				.map((item: any) => {
+					const data = item?.data || {};
+					const itemKey = (data.key || "").toString();
+					const date = (data.date || "").toString().trim();
+					const yearMatch = date.match(/\d{4}/);
+					const zoteroWebUrl = item?.links?.alternate?.href || (itemKey ? `https://www.zotero.org/${libraryPath}/items/${itemKey}` : "");
+					const attachmentUrl = (data.url || "").toString().trim();
+					let zoteroSelectUrl = "";
+					if (itemKey) {
+						if (libraryPath.startsWith("groups/")) {
+							const groupId = libraryPath.split("/")[1] || "";
+							if (groupId) {
+								zoteroSelectUrl = `zotero://select/groups/${groupId}/items/${itemKey}`;
+							}
+						} else {
+							zoteroSelectUrl = `zotero://select/library/items/${itemKey}`;
+						}
+					}
+					return {
+						title: data.title || "Untitled",
+						author: this.formatZoteroCreators(data.creators),
+						publisher: data.publisher || data.publicationTitle || "Unknown Publisher",
+						date: yearMatch ? yearMatch[0] : (date || "No Date"),
+						url: attachmentUrl || zoteroWebUrl || "#",
+						attachmentUrl,
+						zoteroWebUrl,
+						zoteroSelectUrl,
+						description: data.abstractNote || "",
+						address: data.archiveLocation || "",
+						collectionName: "Zotero Library",
+						designator: "ZOT",
+						categoryName: data.itemType || "Zotero",
+						collection_url: `https://www.zotero.org/${libraryPath}`,
+					};
+				});
+
+			const result = {
+				collectionName: "Zotero Library",
+				designator: "ZOT",
+				url: `https://www.zotero.org/${libraryPath}`,
+				items: normalizedItems,
+			};
+
+			this.zoteroLastCacheKey = cacheKey;
+			this.zoteroLastResult = result;
+			this.zoteroLastResultAt = Date.now();
+
+			return result;
+		} catch (error) {
+			console.error("❌ Error fetching Zotero items:", error);
+			this.notifyZotero("❌ Unable to fetch Zotero items.");
+			return null;
+		}
 	}
 
 
@@ -1060,13 +1485,20 @@ export default class synapse extends Plugin {
 				}
 
 				if (DEBUG_MODE) console.log("📡 Loading metadata from URLs:", filePaths);
-				const collections = await loadAndMergeJSONs(filePaths);
+				const collections = await loadAndMergeJSONs(this.app, filePaths);
 				if (DEBUG_MODE) console.log("📜 Raw collections:", collections);
 
 				const filteredCollections: { collectionName: string; designator: string; items: any[] }[] =
 					currentQuery.length === 0
 						? collections
 						: performFuzzySearch(collections, currentQuery);
+
+				if (currentQuery.length >= 2) {
+					const zoteroCollection = await this.fetchZoteroCollection(currentQuery);
+					if (zoteroCollection) {
+						filteredCollections.push(zoteroCollection);
+					}
+				}
 
 				// ✅ Re-insert collection_url into filtered collections (so modal doesn't lose them)
 				for (const collection of filteredCollections) {

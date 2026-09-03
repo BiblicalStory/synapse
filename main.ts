@@ -1,6 +1,6 @@
 import { App, Modal, MarkdownView, Plugin, Notice, Editor, PluginSettingTab, Setting } from 'obsidian';
 import { performFuzzySearch } from "./searchEngine";
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 const METADATA_CACHE_TTL_MS = 120000;
 const metadataCollectionCache = new Map<string, { fetchedAt: number; collection: { url: string; collectionName: string; designator: string; items: any[] } }>();
 
@@ -726,6 +726,7 @@ class JSONSearchModal {
 	onChoose: (result: any) => void;
 	colorMap: Map<string, string>;
 	currentQuery: string;
+	searchQueryDisplay: HTMLSpanElement | null = null;
 	constructor(app: App, results: any[], onChoose: (result: any) => void, position = { top: 100, left: 100 }, currentQuery: string) {
 		this.app = app;
 		this.results = results || [];
@@ -783,7 +784,7 @@ class JSONSearchModal {
 				? "(ZOT) Zotero Library"
 				: collection.designator === "BST"
 					? "(BST) BiblicalStory"
-					: collection.collectionName;
+					: collection.collectionName.replace(/BST\s*[\-\u2013\u2014]\s*BASEMAP/i, "BST - BASEMAP");
 			const categoryHeader = this.popover.createEl("h4", { text: collectionLabel });
 			categoryHeader.style.marginTop = "25px";
 			categoryHeader.style.marginBottom = "12px";
@@ -978,6 +979,7 @@ class JSONSearchModal {
 		activeCollectionsLabel.style.flexGrow = "1";
 
 		const searchQueryDisplay = commandBar.createEl("span", { text: `Searching: @@${this.currentQuery}` });
+		this.searchQueryDisplay = searchQueryDisplay;
 		searchQueryDisplay.style.flexGrow = "1";
 		searchQueryDisplay.style.color = "var(--text-normal, #f5f5f5)";
 		searchQueryDisplay.style.fontSize = "12px";
@@ -996,6 +998,13 @@ class JSONSearchModal {
 
 		this.popover.appendChild(resultsContainer);
 		this.popover.appendChild(commandBar);
+	}
+
+	updateQueryDisplay(newQuery: string): void {
+		this.currentQuery = newQuery;
+		if (this.searchQueryDisplay) {
+			this.searchQueryDisplay.setText(`Searching: @@${newQuery}`);
+		}
 	}
 
 	updateResults(newResults: { collectionName: string; designator: string; items: { title?: string }[] }[], newQuery: string) {
@@ -1758,6 +1767,9 @@ WRITE BELOW ->
 		void loadAndMergeJSONs(this.app, metadataUrls);
 		//run trigger detection immediately
 		this.initializeTriggerDetection();
+		this.registerEvent(this.app.workspace.on("active-leaf-change", () => {
+			this.initializeTriggerDetection();
+		}));
 		this.registerObsidianProtocolHandler("synapse-open-zotero", (params) => {
 			const zoteroUri = params.uri;
 			if (zoteroUri?.startsWith("zotero://")) {
@@ -1775,7 +1787,7 @@ WRITE BELOW ->
 								this.searchModal.close();
 								this.searchModal = null;
 							}
-						} this.initializeTriggerDetection();
+						}
 					});
 				}
 			}
@@ -1819,6 +1831,10 @@ WRITE BELOW ->
 		// ✅ Define and store the new event handler
 		this.editorChangeHandler = async (editor: Editor) => {
 			if (DEBUG_MODE) console.log("Editor change detected!");
+			const liveQuery = this.getLiveTriggerQuery(editor);
+			if (this.searchModal && liveQuery !== null) {
+				this.searchModal.updateQueryDisplay(liveQuery.trim());
+			}
 
 			if (this.triggerSearchDebounce) {
 				clearTimeout(this.triggerSearchDebounce);

@@ -1,10 +1,10 @@
 README
-synapse v2.0.3
+synapse v2.0.4
 copyright 2026 BiblicalStory Incorporated
 
 Important note: synapse accesses remote data sources over the internet. Only enable sources you trust.
 
-# synapse README (v2.0.3)
+# synapse README (v2.0.4)
 
 Synapse is an Obsidian research bridge developed by BiblicalStory. It connects local and remote research metadata into one in-editor workflow. One can think of synapse as a radio installed into Obsidian that accesses remote databases.
 
@@ -61,6 +61,7 @@ Notes created from Zotero results include an **Open in Zotero** link in their me
 
 - Synapse caches standard metadata sources for faster modal startup.
 - Zotero requests are throttled and cached to reduce lag and rate-limit errors.
+- The footer echoes the current @@ query immediately while results refresh separately.
 - Search input is debounced briefly so rapid typing produces a single remote request for the completed term.
 - Zotero initially loads a bounded recent-results list, then refreshes as the query changes.
 

@@ -4,11 +4,25 @@ const DEBUG_MODE = true;
 const METADATA_CACHE_TTL_MS = 120000;
 const metadataCollectionCache = new Map<string, { fetchedAt: number; collection: { url: string; collectionName: string; designator: string; items: any[] } }>();
 
+function openExternalUrl(url: string, retryZoteroSelection = false): void {
+	if (url.startsWith("zotero://")) {
+		const electron = require("electron") as { shell: { openExternal: (target: string) => Promise<void> } };
+		void electron.shell.openExternal(url);
+		if (retryZoteroSelection) {
+			window.setTimeout(() => void electron.shell.openExternal(url), 1000);
+		}
+		return;
+	}
+
+	window.open(url, "_blank");
+}
+
 // Plugin Settings Interface
 interface synapseSettings {
 	enableBiblicalStory: boolean;
 	enableLIRF?: boolean; // NEW
 	enableLIRFCodemap?: boolean;
+	enableSubmap?: boolean;
 	metadataUrls: { url: string; enabled: boolean }[];
 	zoteroApiKey?: string;
 	zoteroSessionOnly?: boolean;
@@ -22,6 +36,7 @@ const DEFAULT_SETTINGS: synapseSettings = {
 	enableBiblicalStory: true,
 	enableLIRF: true, // NEW
 	enableLIRFCodemap: true,
+	enableSubmap: true,
 	metadataUrls: [],
 	zoteroApiKey: "",
 	zoteroSessionOnly: false,
@@ -275,6 +290,17 @@ class synapseSettingTab extends PluginSettingTab {
 				toggle.setValue(this.plugin.settings.enableLIRFCodemap ?? false)
 					.onChange(async (value) => {
 						this.plugin.settings.enableLIRFCodemap = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Enable L-IRF BST-SUBMAP")
+			.setDesc("Enable the L-IRF Submap research library.")
+			.addToggle(toggle =>
+				toggle.setValue(this.plugin.settings.enableSubmap ?? true)
+					.onChange(async (value) => {
+						this.plugin.settings.enableSubmap = value;
 						await this.plugin.saveSettings();
 					})
 			);
@@ -627,29 +653,27 @@ async function loadAndMergeJSONs(app: App, filePaths: string[]): Promise<any[]> 
 	// ✅ Load all metadata sources in parallel
 	await Promise.all(filePaths.map(loadJSONData));
 
-	mergedResults.sort((a, b) => {
-		const nameA = a.collectionName ?? "";
-		const nameB = b.collectionName ?? "";
-
-		// Always sort BiblicalStory first
-		if (nameA.includes("BiblicalStory")) return -1;
-		if (nameB.includes("BiblicalStory")) return 1;
-
-		// Always sort CODEMAP last
-		if (nameA.includes("CODEMAP")) return 1;
-		if (nameB.includes("CODEMAP")) return -1;
-
-		// Always sort BASEMAP second-to-last
-		if (nameA.includes("BASEMAP")) return 1;
-		if (nameB.includes("BASEMAP")) return -1;
-
-		// Otherwise, preserve order
-		return 0;
-	});
+	sortCollectionsForDisplay(mergedResults);
 
 	if (DEBUG_MODE) console.log(`✅ Merged ${mergedResults.length} collections successfully.`);
 	return mergedResults;
 }
+
+function sortCollectionsForDisplay<T extends { collectionName: string; designator: string }>(collections: T[]): T[] {
+	return collections.sort((a, b) => {
+		const collectionPriority = (collection: T) => {
+			const name = collection.collectionName ?? "";
+			if (collection.designator === "BST" || name.includes("BiblicalStory")) return 0;
+			if (collection.designator === "ZOT") return 1;
+			if (name.includes("BASEMAP")) return 2;
+			if (name.includes("SUBMAP")) return 3;
+			if (name.includes("CODEMAP")) return 4;
+			return 5;
+		};
+		return collectionPriority(a) - collectionPriority(b);
+	});
+}
+
 // Ensure Folder Exists
 async function ensureFolderExists(app: App, folderPath: string): Promise<void> {
 	const folder = app.vault.getAbstractFileByPath(folderPath);
@@ -751,24 +775,16 @@ class JSONSearchModal {
 		this.results.forEach((collection) => {
 			if (!this.colorMap.has(collection.collectionName)) {
 				this.colorMap.set(collection.collectionName, getRandomColor());
-
-				let collectionURL = collection?.url || "#";
-
-				// ✅ If any item contains collection_url, prefer it
-				if (Array.isArray(collection.items) && collection.items.length > 0) {
-					const firstWithCollectionURL = collection.items.find((item: any) => item.collection_url);
-					if (firstWithCollectionURL?.collection_url) {
-						collectionURL = firstWithCollectionURL.collection_url;
-					}
-				}
-
-
-
 			}
 			const collectionColor = this.colorMap.get(collection.collectionName) || "#CCCCCC";
 
 			// ✅ Collection header styling
-			const categoryHeader = this.popover.createEl("h4", { text: collection.collectionName });
+			const collectionLabel = collection.designator === "ZOT"
+				? "(ZOT) Zotero Library"
+				: collection.designator === "BST"
+					? "(BST) BiblicalStory"
+					: collection.collectionName;
+			const categoryHeader = this.popover.createEl("h4", { text: collectionLabel });
 			categoryHeader.style.marginTop = "25px";
 			categoryHeader.style.marginBottom = "12px";
 			categoryHeader.style.cursor = "pointer";
@@ -779,12 +795,21 @@ class JSONSearchModal {
 			categoryHeader.style.border = "1px solid var(--background-modifier-border, #444)";
 			categoryHeader.style.borderLeft = `4px solid ${collectionColor}`;
 
-			// ✅ Pull homepage from "Collection.url", NOT from item URLs
-			// ✅ Extract homepage URL from "Collection.url", NOT the JSON source URL
 			if (DEBUG_MODE) console.log("🧐 Full Collection Object:", collection);
 			if (DEBUG_MODE) console.log("🔍 Extracted Collection URL:", collection.url);
 
 			let collectionURL = collection?.url || "#";
+			const firstZoteroItem = collection.designator === "ZOT"
+				? collection.items?.find((item: any) => item.zoteroSelectUrl)
+				: null;
+			if (firstZoteroItem?.zoteroSelectUrl) {
+				collectionURL = firstZoteroItem.zoteroSelectUrl;
+			} else {
+				const firstWithCollectionURL = collection.items?.find((item: any) => item.collection_url);
+				if (firstWithCollectionURL?.collection_url) {
+					collectionURL = firstWithCollectionURL.collection_url;
+				}
+			}
 
 			if (collectionURL && !collectionURL.startsWith("http")) {
 				collectionURL = "https://" + collectionURL;  // ✅ Force proper URL format
@@ -811,7 +836,7 @@ class JSONSearchModal {
 				if (DEBUG_MODE) console.log("Extracted collection URL:", collection.url);
 
 				if (collectionURL !== "#") {
-					window.open(collectionURL, "_blank");
+					openExternalUrl(collectionURL);
 				} else {
 					console.warn("⚠️ No valid URL found for this collection.");
 				}
@@ -823,7 +848,7 @@ class JSONSearchModal {
 				touchTimer = setTimeout(() => {
 					if (DEBUG_MODE) console.log(`📱 Long press detected. Opening: ${collectionURL}`);
 					if (collectionURL !== "#") {
-						window.open(collectionURL, "_blank");
+						openExternalUrl(collectionURL);
 					}
 				}, 500);
 			});
@@ -905,7 +930,7 @@ class JSONSearchModal {
 					event.preventDefault(); // ✅ Prevent default right-click menu
 					const openTarget = event.shiftKey ? alternateOpenUrl : primaryOpenUrl;
 					if (openTarget && openTarget !== "#") {
-						window.open(openTarget, "_blank");
+						openExternalUrl(openTarget, true);
 					}
 				});
 
@@ -914,7 +939,7 @@ class JSONSearchModal {
 				entryWrapper.addEventListener("touchstart", () => {
 					touchTimer = setTimeout(() => {
 						if (primaryOpenUrl && primaryOpenUrl !== "#") {
-							window.open(primaryOpenUrl, "_blank");
+							openExternalUrl(primaryOpenUrl, true);
 						}
 					}, 500); // ✅ 500ms = long press
 				});
@@ -1067,6 +1092,8 @@ export default class synapse extends Plugin {
 	settings: synapseSettings;
 	public searchModal: JSONSearchModal | null = null;
 	private editorChangeHandler: ((editor: Editor) => Promise<void>) | null = null;
+	private triggerSearchDebounce: ReturnType<typeof setTimeout> | null = null;
+	private searchRequestId = 0;
 	private sessionZoteroApiKey = "";
 	private cachedZoteroUserId: string | null = null;
 	private zoteroNoticeTimestamps = new Map<string, number>();
@@ -1316,9 +1343,9 @@ export default class synapse extends Plugin {
 		}
 
 		const normalizedQuery = (currentQuery || "").trim();
-		if (normalizedQuery.length === 0) {
-			return null;
-		}
+		const zoteroWebLibraryUrl = libraryPath.startsWith("groups/")
+			? `https://www.zotero.org/${libraryPath}/items`
+			: `https://www.zotero.org/${libraryPath.slice("users/".length)}/items`;
 
 		const cacheKey = `${libraryPath}::${normalizedQuery || "[recent]"}`;
 		const now = Date.now();
@@ -1426,14 +1453,14 @@ export default class synapse extends Plugin {
 						collectionName: "Zotero Library",
 						designator: "ZOT",
 						categoryName: data.itemType || "Zotero",
-						collection_url: `https://www.zotero.org/${libraryPath}`,
+						collection_url: zoteroWebLibraryUrl,
 					};
 				});
 
 			const result = {
 				collectionName: "Zotero Library",
 				designator: "ZOT",
-				url: `https://www.zotero.org/${libraryPath}`,
+				url: zoteroWebLibraryUrl,
 				items: normalizedItems,
 			};
 
@@ -1449,10 +1476,28 @@ export default class synapse extends Plugin {
 		}
 	}
 
+	private getLiveTriggerQuery(editor?: Editor): string | null {
+		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const activeEditor = editor || activeView?.editor;
+		if (!activeEditor) {
+			return null;
+		}
+
+		const cursor = activeEditor.getCursor();
+		const line = activeEditor.getLine(cursor.line);
+		const beforeCursor = line.substring(0, cursor.ch);
+		const triggerIndex = beforeCursor.lastIndexOf("@@");
+
+		if (triggerIndex === -1) {
+			return null;
+		}
+
+		return beforeCursor.slice(triggerIndex + 2);
+	}
 
 	async checkForTrigger(editor: Editor) {
-		let currentQuery = "";
 		if (DEBUG_MODE) console.log("🔍 checkForTrigger function called!");
+		const requestId = ++this.searchRequestId;
 
 		try {
 			const cursor = editor.getCursor();
@@ -1462,7 +1507,7 @@ export default class synapse extends Plugin {
 			const filePaths: string[] = [];
 
 			if (triggerIndex !== -1) {
-				currentQuery = beforeCursor.slice(triggerIndex + 2).trim();
+				const editorQuery = beforeCursor.slice(triggerIndex + 2);
 
 				if (this.settings.enableBiblicalStory) {
 					filePaths.push("http://20.115.87.69/knb1_public/BST_Site_Metadata/metadata.json");
@@ -1476,6 +1521,10 @@ export default class synapse extends Plugin {
 					filePaths.push("http://20.115.87.69/knb1_public/BST_Site_Metadata/LIRF_BST_CODEMAP_r1.json");
 				}
 
+				if (this.settings.enableSubmap ?? true) {
+					filePaths.push("https://raw.githubusercontent.com/BiblicalStory/submap/main/submap/submap-rtp.json");
+				}
+
 				if (Array.isArray(this.settings.metadataUrls) && this.settings.metadataUrls.length > 0) {
 					const enabledUrls = this.settings.metadataUrls
 						.filter(entry => entry.enabled)
@@ -1486,15 +1535,30 @@ export default class synapse extends Plugin {
 
 				if (DEBUG_MODE) console.log("📡 Loading metadata from URLs:", filePaths);
 				const collections = await loadAndMergeJSONs(this.app, filePaths);
+				if (requestId !== this.searchRequestId) {
+					return;
+				}
 				if (DEBUG_MODE) console.log("📜 Raw collections:", collections);
 
+				const liveQuery = this.getLiveTriggerQuery(editor);
+				if (liveQuery === null) {
+					if (this.searchModal) {
+						this.searchModal.close();
+						this.searchModal = null;
+					}
+					return;
+				}
+
+				const currentQuery = liveQuery;
+				const searchQuery = currentQuery.trim();
+
 				const filteredCollections: { collectionName: string; designator: string; url?: string; items: any[] }[] =
-					currentQuery.length === 0
+					searchQuery.length === 0
 						? collections
-						: performFuzzySearch(collections, currentQuery);
+						: performFuzzySearch(collections, searchQuery);
 
 				const zoteroEnabled = this.settings.zoteroEnabled ?? false;
-				const shouldFetchZotero = zoteroEnabled && currentQuery.length >= 2;
+				const shouldFetchZotero = zoteroEnabled;
 				if (zoteroEnabled) {
 					const libraryType = this.settings.zoteroLibraryType ?? "user";
 					const libraryId = (this.settings.zoteroLibraryId || "").trim();
@@ -1520,78 +1584,82 @@ export default class synapse extends Plugin {
 						(collection as any).url = original.url;
 					}
 				}
+				sortCollectionsForDisplay(filteredCollections);
 
 				if (!filteredCollections || filteredCollections.length === 0) {
 					console.warn("⚠️ No matching results.");
 				}
 
-				setTimeout(() => {
-					const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-					if (!view) {
-						console.warn("⚠️ No active Markdown view found.");
-						return;
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (!view) {
+					console.warn("⚠️ No active Markdown view found.");
+					return;
+				}
+
+				const cmEditor = view.editor as any;
+				let modalPosition = { top: 100, left: 100 };
+
+				if (typeof cmEditor.coordsAtPos === "function") {
+					const cursorPos = cmEditor.getCursor();
+					const coords = cmEditor.coordsAtPos(cursorPos);
+
+					if (coords) {
+						modalPosition = {
+							top: coords.bottom + 5,
+							left: coords.left,
+						};
+						if (DEBUG_MODE) console.log("📌 Retrieved Cursor Coordinates:", coords);
 					}
+				}
 
-					const cmEditor = view.editor as any;
-					let modalPosition = { top: 100, left: 100 };
-
-					if (typeof cmEditor.coordsAtPos === "function") {
-						const cursorPos = cmEditor.getCursor();
-						const coords = cmEditor.coordsAtPos(cursorPos);
-
-						if (coords) {
-							modalPosition = {
-								top: coords.bottom + 5,
-								left: coords.left,
-							};
-							if (DEBUG_MODE) console.log("📌 Retrieved Cursor Coordinates:", coords);
+				if (!this.searchModal) {
+					if (DEBUG_MODE) console.log("🆕 Creating and opening modal...");
+					this.searchModal = new JSONSearchModal(this.app, filteredCollections, async (result: any) => {
+						if (!result) {
+							console.error("❌ No result selected.");
+							return;
 						}
-					}
 
-					if (!this.searchModal) {
-						if (DEBUG_MODE) console.log("🆕 Creating and opening modal...");
-						this.searchModal = new JSONSearchModal(this.app, filteredCollections, async (result: any) => {
-							if (!result) {
-								console.error("❌ No result selected.");
-								return;
-							}
+						const knownKeys = [
+							"title", "author", "publisher", "date", "url", "description",
+							"collectionName", "designator", "categoryName", "collection_url", "ris",
+							"attachmentUrl", "zoteroWebUrl", "zoteroSelectUrl"
+						];
 
-							const knownKeys = [
-								"title", "author", "publisher", "date", "url", "description",
-								"collectionName", "designator", "categoryName", "collection_url", "ris"
-							];
+						const metaLines: string[] = [];
 
-							const metaLines: string[] = [];
+						// Standard fields
+						metaLines.push(`COLLECTION: ${result.collectionName}`);
+						metaLines.push(`TITLE: "${result.title || "Untitled"}"`);
+						metaLines.push(`AUTHOR: ${result.author || "Unknown Author"}`);
+						metaLines.push(`PUBLISHER: ${result.publisher || "Unknown Publisher"}`);
+						metaLines.push(`DATE: ${result.date || "No Date"}`);
+						metaLines.push(`URL: ${result.url || "None"}`);
+						if (result.zoteroSelectUrl) {
+							metaLines.push(`ZOTERO: [Open in Zotero](obsidian://synapse-open-zotero?uri=${encodeURIComponent(result.zoteroSelectUrl)})`);
+						}
 
-							// Standard fields
-							metaLines.push(`COLLECTION: ${result.collectionName}`);
-							metaLines.push(`TITLE: "${result.title || "Untitled"}"`);
-							metaLines.push(`AUTHOR: ${result.author || "Unknown Author"}`);
-							metaLines.push(`PUBLISHER: ${result.publisher || "Unknown Publisher"}`);
-							metaLines.push(`DATE: ${result.date || "No Date"}`);
-							metaLines.push(`URL: ${result.url || "None"}`);
+						// New: Add collection_url if different and present
+						if (result.collection_url && result.collection_url !== result.url) {
+							metaLines.push(`COLLECTION URL: ${result.collection_url}`);
+						}
 
-							// New: Add collection_url if different and present
-							if (result.collection_url && result.collection_url !== result.url) {
-								metaLines.push(`COLLECTION URL: ${result.collection_url}`);
-							}
+						// Optional description
+						if (result.description) {
+							metaLines.push(`DESCRIPTION: ${result.description}`);
+						}
 
-							// Optional description
-							if (result.description) {
-								metaLines.push(`DESCRIPTION: ${result.description}`);
-							}
+						// Optional full RIS
+						if (result.ris) {
+							metaLines.push(`RIS: ${result.ris}`);
+						}
 
-							// Optional full RIS
-							if (result.ris) {
-								metaLines.push(`RIS: ${result.ris}`);
-							}
+						// Detect and append any extra fields not in knownKeys
+						const extraFields = Object.entries(result)
+							.filter(([key]) => !knownKeys.includes(key))
+							.map(([key, val]) => `${key}: ${typeof val === "object" ? JSON.stringify(val, null, 2) : val}`);
 
-							// Detect and append any extra fields not in knownKeys
-							const extraFields = Object.entries(result)
-								.filter(([key]) => !knownKeys.includes(key))
-								.map(([key, val]) => `${key}: ${typeof val === "object" ? JSON.stringify(val, null, 2) : val}`);
-
-							const content = `${metaLines.join("\n")}
+						const content = `${metaLines.join("\n")}
 
 -----------------------------------
 # Additional Metadata
@@ -1601,59 +1669,64 @@ ${extraFields.length > 0 ? extraFields.join("\n") : "(None)"}
 -----------------------------------
 WRITE BELOW ->
 \n\n`;
-							const author = result.author || "Unknown Author";
+						const author = result.author || "Unknown Author";
 
-							const filePath = await createNoteInHierarchy(
-								this.app,
-								result.title,
-								content,
-								result.collectionName,
-								result.designator,
-								result.categoryName,
-								author
+						const filePath = await createNoteInHierarchy(
+							this.app,
+							result.title,
+							content,
+							result.collectionName,
+							result.designator,
+							result.categoryName,
+							author
+						);
+
+						const matchIndex = line.indexOf("@@");
+						if (matchIndex !== -1) {
+							const cursorPos = editor.getCursor();
+							editor.replaceRange(
+								"",
+								{ line: cursor.line, ch: matchIndex },
+								{ line: cursor.line, ch: cursorPos.ch }
 							);
+						}
 
-							const matchIndex = line.indexOf("@@");
-							if (matchIndex !== -1) {
-								const cursorPos = editor.getCursor();
-								editor.replaceRange(
-									"",
-									{ line: cursor.line, ch: matchIndex },
-									{ line: cursor.line, ch: cursorPos.ch }
-								);
-							}
+						// Now insert the link
+						const insertion = `[[${filePath}]]`;
+						editor.replaceRange(insertion, editor.getCursor());
 
-							// Now insert the link
-							const insertion = `[[${filePath}]]`;
-							editor.replaceRange(insertion, editor.getCursor());
-
-							// Close modal
-							if (this.searchModal) {
-								this.searchModal.close();
-								this.searchModal = null;
-							}
-						}, modalPosition, currentQuery);
-					} else {
-						if (DEBUG_MODE) console.log("♻️ Updating modal results...");
-						this.searchModal.updateResults(filteredCollections, currentQuery);
-					}
-
-					if (DEBUG_MODE) console.log("📌 Opening modal at:", modalPosition);
+						// Close modal
+						if (this.searchModal) {
+							this.searchModal.close();
+							this.searchModal = null;
+						}
+					}, modalPosition, searchQuery);
+				} else {
+					if (DEBUG_MODE) console.log("♻️ Updating modal results...");
+					this.searchModal.updateResults(filteredCollections, searchQuery);
 					this.searchModal.open(modalPosition);
+				}
 
-					if (shouldFetchZotero) {
-						void this.fetchZoteroCollection(currentQuery).then((zoteroCollection) => {
-							if (!this.searchModal || !zoteroCollection) {
-								return;
-							}
+				if (shouldFetchZotero) {
+					void this.fetchZoteroCollection(searchQuery).then((zoteroCollection) => {
+						if (requestId !== this.searchRequestId || !this.searchModal || !zoteroCollection) {
+							return;
+						}
 
-							const withoutZotero = filteredCollections.filter((c) => c.designator !== "ZOT");
-							this.searchModal.updateResults([...withoutZotero, zoteroCollection], currentQuery);
-						}).catch((error) => {
-							console.error("❌ Async Zotero fetch failed:", error);
-						});
-					}
-				}, 1);
+						const liveQueryAfterZotero = this.getLiveTriggerQuery();
+						if (liveQueryAfterZotero === null || liveQueryAfterZotero !== currentQuery) {
+							return;
+						}
+
+						const withoutZotero = filteredCollections.filter((c) => c.designator !== "ZOT");
+						this.searchModal.updateResults(
+							sortCollectionsForDisplay([...withoutZotero, zoteroCollection]),
+							liveQueryAfterZotero.trim()
+						);
+					}).catch((error) => {
+						console.error("❌ Async Zotero fetch failed:", error);
+					});
+				}
 			} else {
 				if (DEBUG_MODE) console.log("❌ No '@@' detected, closing search modal.");
 				if (this.searchModal) {
@@ -1675,8 +1748,22 @@ WRITE BELOW ->
 		//register the settings tab
 		this.addSettingTab(new synapseSettingTab(this.app, this));
 		if (DEBUG_MODE) console.log("Settings loaded");
+		const metadataUrls = [
+			this.settings.enableBiblicalStory ? "http://20.115.87.69/knb1_public/BST_Site_Metadata/metadata.json" : null,
+			this.settings.enableLIRF ? "http://20.115.87.69/knb1_public/BST_Site_Metadata/LIRF_BST_BASEMAP_r1.json" : null,
+			this.settings.enableLIRFCodemap ? "http://20.115.87.69/knb1_public/BST_Site_Metadata/LIRF_BST_CODEMAP_r1.json" : null,
+			(this.settings.enableSubmap ?? true) ? "https://raw.githubusercontent.com/BiblicalStory/submap/main/submap/submap-rtp.json" : null,
+			...(this.settings.metadataUrls || []).filter(entry => entry.enabled).map(entry => entry.url),
+		].filter((url): url is string => Boolean(url));
+		void loadAndMergeJSONs(this.app, metadataUrls);
 		//run trigger detection immediately
 		this.initializeTriggerDetection();
+		this.registerObsidianProtocolHandler("synapse-open-zotero", (params) => {
+			const zoteroUri = params.uri;
+			if (zoteroUri?.startsWith("zotero://")) {
+				openExternalUrl(zoteroUri, true);
+			}
+		});
 		//also run it when switching notes
 		const observer = new MutationObserver((mutationsList) => {
 			for (const mutation of mutationsList) {
@@ -1732,7 +1819,16 @@ WRITE BELOW ->
 		// ✅ Define and store the new event handler
 		this.editorChangeHandler = async (editor: Editor) => {
 			if (DEBUG_MODE) console.log("Editor change detected!");
-			await this.checkForTrigger(editor);
+
+			if (this.triggerSearchDebounce) {
+				clearTimeout(this.triggerSearchDebounce);
+			}
+
+			this.triggerSearchDebounce = setTimeout(async () => {
+				const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+				const latestEditor = activeView?.editor || editor;
+				await this.checkForTrigger(latestEditor);
+			}, 300);
 		};
 
 		// ✅ Attach the new event handler
@@ -1740,6 +1836,11 @@ WRITE BELOW ->
 	}
 	onunload() {
 		if (DEBUG_MODE) console.log("MyPlugin unloaded!");
+
+		if (this.triggerSearchDebounce) {
+			clearTimeout(this.triggerSearchDebounce);
+			this.triggerSearchDebounce = null;
+		}
 
 		// ✅ Remove the event listener before unloading
 		if (this.editorChangeHandler) {

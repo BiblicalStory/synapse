@@ -16,7 +16,7 @@ const context = await esbuild.context({
 	banner: {
 		js: banner,
 	},
-	entryPoints: ["main.ts", "searchEngine.ts"],
+	entryPoints: ["main.ts"],
 	bundle: true,
 	external: [
 		"obsidian",
@@ -39,16 +39,12 @@ const context = await esbuild.context({
 	logLevel: "info",
 	sourcemap: prod ? false : "inline",
 	treeShaking: true,
-	outdir: "dist",
+	outfile: "main.js",
 	minify: prod,
 });
 
 if (prod) {
 	await context.rebuild();
-
-	// ✅ Copy support files to dist/
-	copyFileSync("manifest.json", "dist/manifest.json");
-	copyFileSync("styles.css", "dist/styles.css");
 
 	process.exit(0);
 } else {

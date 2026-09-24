@@ -19,6 +19,7 @@ function openExternalUrl(url: string, retryZoteroSelection = false): void {
 
 // Plugin Settings Interface
 interface synapseSettings {
+	searchTrigger: string;
 	enableBiblicalStory: boolean;
 	enableLIRF?: boolean; // NEW
 	enableLIRFCodemap?: boolean;
@@ -33,6 +34,7 @@ interface synapseSettings {
 }
 
 const DEFAULT_SETTINGS: synapseSettings = {
+	searchTrigger: "@@@",
 	enableBiblicalStory: true,
 	enableLIRF: true, // NEW
 	enableLIRFCodemap: true,
@@ -251,6 +253,18 @@ class synapseSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		containerEl.createEl("h1", { text: "synapse Settings" });
+
+		new Setting(containerEl)
+			.setName("Search trigger")
+			.setDesc("Text that opens Synapse search. Default: @@@. Use @@ or your own trigger. Blank values use @@@.")
+			.addText(text => text
+				.setPlaceholder("@@@")
+				.setValue(this.plugin.settings.searchTrigger)
+				.onChange(async (value) => {
+					this.plugin.settings.searchTrigger = value.trim() || DEFAULT_SETTINGS.searchTrigger;
+					await this.plugin.saveSettings();
+				}));
+
 
 		/*// ✅ Close search modal if settings are opened
 		if (this.plugin.searchModal) {
@@ -516,7 +530,7 @@ class synapseSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Enable Zotero Live Search")
-			.setDesc("When enabled, @@ searches include live Zotero matches.")
+			.setDesc("When enabled, Synapse searches include live Zotero matches.")
 			.addToggle(toggle =>
 				toggle
 					.setValue(this.plugin.settings.zoteroEnabled ?? false)
@@ -727,7 +741,7 @@ class JSONSearchModal {
 	colorMap: Map<string, string>;
 	currentQuery: string;
 	searchQueryDisplay: HTMLSpanElement | null = null;
-	constructor(app: App, results: any[], onChoose: (result: any) => void, position = { top: 100, left: 100 }, currentQuery: string) {
+	constructor(app: App, results: any[], onChoose: (result: any) => void, position = { top: 100, left: 100 }, currentQuery: string, private searchTrigger: string) {
 		this.app = app;
 		this.results = results || [];
 		this.onChoose = onChoose;
@@ -978,7 +992,7 @@ class JSONSearchModal {
 		});
 		activeCollectionsLabel.style.flexGrow = "1";
 
-		const searchQueryDisplay = commandBar.createEl("span", { text: `Searching: @@${this.currentQuery}` });
+		const searchQueryDisplay = commandBar.createEl("span", { text: `Searching: ${this.searchTrigger}${this.currentQuery}` });
 		this.searchQueryDisplay = searchQueryDisplay;
 		searchQueryDisplay.style.flexGrow = "1";
 		searchQueryDisplay.style.color = "var(--text-normal, #f5f5f5)";
@@ -1003,7 +1017,7 @@ class JSONSearchModal {
 	updateQueryDisplay(newQuery: string): void {
 		this.currentQuery = newQuery;
 		if (this.searchQueryDisplay) {
-			this.searchQueryDisplay.setText(`Searching: @@${newQuery}`);
+			this.searchQueryDisplay.setText(`Searching: ${this.searchTrigger}${newQuery}`);
 		}
 	}
 
@@ -1114,6 +1128,7 @@ export default class synapse extends Plugin {
 
 	async loadSettings() {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.settings.searchTrigger = this.settings.searchTrigger?.trim() || DEFAULT_SETTINGS.searchTrigger;
 
 		if (this.settings.zoteroSessionOnly) {
 			this.sessionZoteroApiKey = this.settings.zoteroApiKey || "";
@@ -1495,13 +1510,13 @@ export default class synapse extends Plugin {
 		const cursor = activeEditor.getCursor();
 		const line = activeEditor.getLine(cursor.line);
 		const beforeCursor = line.substring(0, cursor.ch);
-		const triggerIndex = beforeCursor.lastIndexOf("@@");
+		const triggerIndex = beforeCursor.lastIndexOf(this.settings.searchTrigger);
 
 		if (triggerIndex === -1) {
 			return null;
 		}
 
-		return beforeCursor.slice(triggerIndex + 2);
+		return beforeCursor.slice(triggerIndex + this.settings.searchTrigger.length);
 	}
 
 	async checkForTrigger(editor: Editor) {
@@ -1512,11 +1527,11 @@ export default class synapse extends Plugin {
 			const cursor = editor.getCursor();
 			const line = editor.getLine(cursor.line);
 			const beforeCursor = line.substring(0, cursor.ch);
-			const triggerIndex = beforeCursor.lastIndexOf("@@");
+			const triggerIndex = beforeCursor.lastIndexOf(this.settings.searchTrigger);
 			const filePaths: string[] = [];
 
 			if (triggerIndex !== -1) {
-				const editorQuery = beforeCursor.slice(triggerIndex + 2);
+				const editorQuery = beforeCursor.slice(triggerIndex + this.settings.searchTrigger.length);
 
 				if (this.settings.enableBiblicalStory) {
 					filePaths.push("http://20.115.87.69/knb1_public/BST_Site_Metadata/metadata.json");
@@ -1690,26 +1705,22 @@ WRITE BELOW ->
 							author
 						);
 
-						const matchIndex = line.indexOf("@@");
-						if (matchIndex !== -1) {
-							const cursorPos = editor.getCursor();
-							editor.replaceRange(
-								"",
-								{ line: cursor.line, ch: matchIndex },
-								{ line: cursor.line, ch: cursorPos.ch }
-							);
-						}
-
-						// Now insert the link
+						const cursorPos = editor.getCursor();
+						const currentLine = editor.getLine(cursorPos.line);
+						const matchIndex = currentLine.substring(0, cursorPos.ch).lastIndexOf(this.settings.searchTrigger);
 						const insertion = `[[${filePath}]]`;
-						editor.replaceRange(insertion, editor.getCursor());
+						editor.replaceRange(
+							insertion,
+							matchIndex === -1 ? cursorPos : { line: cursorPos.line, ch: matchIndex },
+							cursorPos
+						);
 
 						// Close modal
 						if (this.searchModal) {
 							this.searchModal.close();
 							this.searchModal = null;
 						}
-					}, modalPosition, searchQuery);
+					}, modalPosition, searchQuery, this.settings.searchTrigger);
 				} else {
 					if (DEBUG_MODE) console.log("♻️ Updating modal results...");
 					this.searchModal.updateResults(filteredCollections, searchQuery);
@@ -1737,7 +1748,7 @@ WRITE BELOW ->
 					});
 				}
 			} else {
-				if (DEBUG_MODE) console.log("❌ No '@@' detected, closing search modal.");
+				if (DEBUG_MODE) console.log("❌ No search trigger detected, closing search modal.");
 				if (this.searchModal) {
 					this.searchModal.close();
 					this.searchModal = null;

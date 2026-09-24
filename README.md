@@ -1,23 +1,33 @@
 README
-synapse v2.0.4
+synapse v2.0.5
 copyright 2026 BiblicalStory Incorporated
 
 Important note: synapse accesses remote data sources over the internet. Only enable sources you trust.
 
-# synapse README (v2.0.4)
+# synapse README (v2.0.5)
 
 Synapse is an Obsidian research bridge developed by BiblicalStory. It connects local and remote research metadata into one in-editor workflow. One can think of synapse as a radio installed into Obsidian that accesses remote databases.
 
+## What’s new in v2.0.5
+
+- The default search launcher is now `@@@` (previously `@@`).
+- New **Search trigger** setting lets you restore `@@` or choose custom text.
+- The search footer and inserted links use your configured trigger.
+
+**Upgrading:** reload Synapse after installing the update. Existing installations switch to `@@@`. To keep the old launcher, set **Settings → synapse → Search trigger** to `@@`.
+
 ## Core workflow
 
-1. Type @@ in a markdown note.
+1. Type @@@ in a markdown note.
 2. Synapse opens a search modal with active collections.
 3. Left click a result to create a structured note and insert a wikilink.
 4. Right click (or long press on mobile) to open the linked source target.
 
+The launcher is configurable under **Settings → synapse → Search trigger**. It defaults to `@@@`; enter `@@` or another custom trigger to change it. Blank values fall back to `@@@`. Existing installations also use the new default until a custom trigger is saved.
+
 ## Features
 
-- Inline search trigger with @@
+- Inline search trigger with @@@
 - Fuzzy matching powered by Fuse.js
 - Multiple metadata sources (remote URL and local JSON)
 - Built-in BiblicalStory, L-IRF BST-BASEMAP, L-IRF BST-SUBMAP, and L-IRF CODEMAP toggles
@@ -29,7 +39,7 @@ Synapse is an Obsidian research bridge developed by BiblicalStory. It connects l
 
 ## Zotero live search
 
-Synapse can query Zotero directly during @@ search. With an empty query, it shows the most recently modified 100 library items; adding terms narrows the live result set.
+Synapse can query Zotero directly during @@@ search. With an empty query, it shows the most recently modified 100 library items; adding terms narrows the live result set.
 
 ### Settings
 
@@ -61,7 +71,7 @@ Notes created from Zotero results include an **Open in Zotero** link in their me
 
 - Synapse caches standard metadata sources for faster modal startup.
 - Zotero requests are throttled and cached to reduce lag and rate-limit errors.
-- The footer echoes the current @@ query immediately while results refresh separately.
+- The footer echoes the current @@@ query immediately while results refresh separately.
 - Search input is debounced briefly so rapid typing produces a single remote request for the completed term.
 - Zotero initially loads a bounded recent-results list, then refreshes as the query changes.
 
